@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>LIVE Q&A</title>
+<meta name="description" content="강의·세미나 중에 폰으로 질문을 받고, 공감 많은 질문부터 답하는 실시간 Q&A 보드">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#07090D">
+<script src="config.js"></script>
+<script>
+/* 테마는 그리기 전에 적용 (깜빡임 방지) */
+(function(){var c=window.LIVEQA_CONFIG||{},t=new URLSearchParams(location.search).get('theme')||c.theme;
+if(t==='light')document.documentElement.setAttribute('data-theme','light');})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{
+  /* --- 다크 테마 (기본) --- */
+  --bg:#07090D; --bg2:#0C1017; --card:#111722; --card2:#151C29;
+  --tint:255,255,255;
+  --line:rgba(var(--tint),.075); --line2:rgba(var(--tint),.16);
+  --ink:#E8EDF7; --sub:#98A5BA; --mut:#67728A;
+  --orange:#FF6B1A; --orange2:#FF9B4D; --orange-deep:#FFB27A; --orange-soft:rgba(255,107,26,.12);
+  --cyan:#2ADCE0; --gold:#FFC24B;
+  --on-accent:#0b0d12; --on-accent2:#06231f; --appbar:rgba(9,12,18,.72); --dot-border:#0A0D13; --opt-bg:#12161E;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.32);
+  --shadow-md:0 12px 48px rgba(0,0,0,.55);
+  --glow:0 0 0 1px rgba(255,107,26,.35),0 8px 30px rgba(255,107,26,.28);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+/* --- 라이트 테마: ?theme=light 또는 config.js theme:'light' --- */
+:root[data-theme="light"]{
+  --bg:#F5F8FF; --bg2:#EEF2FB; --card:#FFFFFF; --card2:#F7F9FE;
+  --tint:15,23,42;
+  --line:rgba(var(--tint),.09); --line2:rgba(var(--tint),.18);
+  --ink:#0F172A; --sub:#475569; --mut:#8A94A6;
+  --orange:#FF6B1A; --orange2:#FF8A3D; --orange-deep:#C2410C; --orange-soft:rgba(255,107,26,.10);
+  --cyan:#0891B2; --gold:#B7791F;
+  --on-accent:#FFFFFF; --on-accent2:#FFFFFF; --appbar:rgba(245,248,255,.78); --dot-border:#FFFFFF; --opt-bg:#FFFFFF;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+  --shadow-md:0 12px 48px rgba(15,23,42,.14);
+  --glow:0 0 0 1px rgba(255,107,26,.25),0 8px 24px rgba(255,107,26,.22);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+img,svg{max-width:100%}
+html,body{height:100%}
+body{
+  font-family:'Pretendard Variable',Pretendard,-apple-system,'Segoe UI',sans-serif;
+  background:var(--bg); color:var(--ink);
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+/* 배경: 테크 그리드 + 글로우 */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    linear-gradient(rgba(var(--tint),.028) 1px,transparent 1px) 0 0/64px 64px,
+    linear-gradient(90deg,rgba(var(--tint),.028) 1px,transparent 1px) 0 0/64px 64px,
+    radial-gradient(820px 520px at 86% -10%, rgba(255,107,26,.16), transparent 62%),
+    radial-gradient(640px 460px at -8% 108%, rgba(42,220,224,.10), transparent 60%);
+  mask-image:radial-gradient(120% 100% at 50% 0%,#000 55%,transparent 100%);}
+button{font-family:inherit}
+::selection{background:rgba(255,107,26,.35)}
+
+/* ================= 상단 앱바 ================= */
+.appbar{position:sticky;top:0;z-index:30;background:var(--appbar);backdrop-filter:blur(16px) saturate(140%);
+  border-bottom:1px solid var(--line);}
+.appbar .in{max-width:660px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:13px 18px}
+.brandmark{position:relative;width:34px;height:34px;border-radius:9px;flex:none;
+  background:linear-gradient(135deg,var(--orange),var(--orange2));box-shadow:var(--glow);
+  display:flex;align-items:center;justify-content:center;color:var(--on-accent);font-weight:900;font-size:15px;letter-spacing:-.03em}
+.brandmark::after{content:"";position:absolute;right:-3px;top:-3px;width:10px;height:10px;border-radius:50%;
+  background:var(--cyan);border:2px solid var(--dot-border);animation:blink 1.8s infinite}
+@keyframes blink{50%{opacity:.3}}
+.brandtxt{line-height:1.15;min-width:0}
+.brandtxt b{display:block;font-size:15px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brandtxt span{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:500;letter-spacing:.14em}
+.livechip{margin-left:auto;flex:none;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.1em;
+  color:var(--orange-deep);background:var(--orange-soft);border:1px solid rgba(255,107,26,.3);border-radius:8px;padding:6px 11px}
+.livechip .d{width:6px;height:6px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px var(--orange);animation:blink 1.4s infinite}
+.livechip.off{color:var(--mut);background:rgba(var(--tint),.04);border-color:var(--line)}
+.livechip.off .d{background:var(--mut);box-shadow:none;animation:none}
+
+/* ================= 공통 레이아웃 ================= */
+.wrap{position:relative;z-index:1;max-width:660px;margin:0 auto;padding:22px 18px 178px}
+.pagehead{margin:4px 0 16px}
+.kicker{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.18em;
+  color:var(--cyan);margin-bottom:9px}
+.kicker::before{content:"";width:16px;height:1px;background:var(--cyan);opacity:.7}
+.pagehead h1{font-size:clamp(21px,5.6vw,27px);font-weight:800;letter-spacing:-.03em;line-height:1.28;word-break:keep-all}
+.pagehead h1 em{font-style:normal;color:var(--orange2)}
+.pagehead p{margin-top:8px;font-size:13.5px;color:var(--sub);font-weight:400;word-break:keep-all;line-height:1.6}
+.statrow{display:flex;gap:8px;margin:16px 0 12px;flex-wrap:wrap}
+.stat{flex:1;min-width:88px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;box-shadow:var(--shadow-sm)}
+.stat .n{font-family:var(--mono);font-size:21px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat .l{font-family:var(--mono);font-size:10px;color:var(--mut);font-weight:500;margin-top:3px;letter-spacing:.1em;text-transform:uppercase}
+.stat.hl .n{color:var(--orange2)}
+.stat.hl{border-color:rgba(255,107,26,.28)}
+
+/* ================= 질문 카드 ================= */
+#list{display:flex;flex-direction:column;gap:10px}
+.q{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px 13px;
+  box-shadow:var(--shadow-sm);transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s,background .3s}
+.q::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;background:transparent;transition:.3s}
+.q:hover{border-color:var(--line2)}
+.q.mine{background:linear-gradient(180deg,rgba(255,107,26,.07),var(--card));border-color:rgba(255,107,26,.28)}
+.q.mine::before{background:linear-gradient(var(--orange),var(--orange2))}
+.q .top{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-width:0}
+.q .avatar{width:26px;height:26px;flex:none;border-radius:8px;background:rgba(var(--tint),.05);border:1px solid var(--line2);
+  display:flex;align-items:center;justify-content:center;font-size:14px}
+.q .who{font-size:12.5px;font-weight:700;color:var(--sub);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.q .who .me{color:var(--orange-deep)}
+.q .time{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:500;flex:none}
+.q .rank{margin-left:auto;font-size:16px;flex:none}
+.q .txt{font-size:15.5px;line-height:1.58;font-weight:450;color:var(--ink);word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
+.q .foot{display:flex;align-items:center;gap:8px;margin-top:12px}
+.voteBtn{display:flex;align-items:center;gap:7px;border:1px solid var(--line2);background:rgba(var(--tint),.04);color:var(--sub);
+  border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;transition:.16s}
+.voteBtn:hover{border-color:rgba(255,107,26,.45);color:var(--orange-deep)}
+.voteBtn:active{transform:scale(.93)}
+.voteBtn.voted{background:linear-gradient(135deg,var(--orange),var(--orange2));border-color:transparent;color:var(--on-accent);box-shadow:var(--glow)}
+.voteBtn .n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.own-actions{margin-left:auto;display:flex;gap:4px}
+.iconBtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:rgba(var(--tint),.03);color:var(--mut);
+  font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.iconBtn:hover{border-color:var(--orange);color:var(--orange-deep)}
+.iconBtn:active{transform:scale(.9)}
+.q.pop{animation:popin .55s cubic-bezier(.2,1.35,.35,1)}
+@keyframes popin{0%{transform:scale(.7) translateY(26px);opacity:0}100%{transform:none;opacity:1}}
+.q.bump{animation:bump .4s}
+@keyframes bump{40%{transform:scale(1.03)}}
+.q.gone{animation:gone .3s forwards}
+@keyframes gone{to{transform:scale(.85);opacity:0}}
+.empty{text-align:center;color:var(--mut);padding:56px 0 48px;font-size:14px;line-height:1.8}
+.empty .big{font-family:var(--mono);font-size:13px;letter-spacing:.2em;color:var(--cyan);margin-bottom:14px;opacity:.8}
+.empty b{color:var(--sub);font-size:15px}
+
+/* ================= 입력바 (참가자) ================= */
+.askbar{position:fixed;left:0;right:0;bottom:0;z-index:40;transform:translateY(calc(-1 * var(--kb,0px)));transition:transform .18s ease-out;
+  padding:10px 14px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,var(--bg) 38%)}
+.askbar .inner{max-width:660px;margin:0 auto;display:flex;gap:8px;background:var(--card2);border:1px solid var(--line2);
+  border-radius:14px;padding:8px;box-shadow:var(--shadow-md)}
+#qInput{flex:1;min-width:0;border:none;background:transparent;color:var(--ink);font-size:16px;padding:11px 10px;outline:none;font-family:inherit}
+#qInput::placeholder{color:var(--mut)}
+#askBtn{border:none;border-radius:10px;background:linear-gradient(135deg,var(--orange),var(--orange2));color:var(--on-accent);
+  font-weight:800;font-size:14px;padding:0 20px;cursor:pointer;box-shadow:var(--glow);white-space:nowrap;transition:.15s}
+#askBtn:active{transform:scale(.94)}
+
+/* ================= 입장 게이트 ================= */
+#gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;
+  overflow-y:auto;overscroll-behavior:contain}
+#gate::before{content:"";position:absolute;inset:0;
+  background:
+    linear-gradient(rgba(var(--tint),.03) 1px,transparent 1px) 0 0/56px 56px,
+    linear-gradient(90deg,rgba(var(--tint),.03) 1px,transparent 1px) 0 0/56px 56px,
+    radial-gradient(660px 420px at 85% -5%,rgba(255,107,26,.18),transparent 60%),
+    radial-gradient(520px 380px at 0% 105%,rgba(42,220,224,.12),transparent 60%)}
+.gate-card{position:relative;width:min(94vw,420px);padding:34px 26px 28px;background:var(--card);border:1px solid var(--line2);
+  border-radius:18px;text-align:center;box-shadow:var(--shadow-md)}
+.gate-card .gm{width:52px;height:52px;margin:0 auto 14px;border-radius:14px;font-size:22px;
+  background:linear-gradient(135deg,var(--orange),var(--orange2));box-shadow:var(--glow);
+  display:flex;align-items:center;justify-content:center}
+.gate-card .org{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.18em;color:var(--cyan)}
+.gate-card h2{font-size:22px;font-weight:800;margin:8px 0 4px;letter-spacing:-.02em}
+.gate-card p{color:var(--mut);font-size:13px;margin-bottom:18px}
+.avatars{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+.avatars button{font-size:22px;aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:rgba(var(--tint),.04);cursor:pointer;transition:.15s}
+.avatars button.sel{border-color:var(--orange);background:var(--orange-soft);transform:scale(1.1);box-shadow:var(--glow)}
+#nickInput{width:100%;padding:14px 16px;font-size:16px;border-radius:11px;border:1px solid var(--line2);background:rgba(var(--tint),.04);
+  color:var(--ink);outline:none;text-align:center;font-weight:700;transition:.15s}
+#nickInput::placeholder{color:var(--mut)}
+#nickInput:focus{border-color:var(--orange);background:rgba(255,107,26,.07)}
+.btn{display:inline-block;width:100%;margin-top:13px;padding:15px;border:none;border-radius:11px;font-size:16px;font-weight:800;cursor:pointer;
+  background:linear-gradient(135deg,var(--orange),var(--orange2));color:var(--on-accent);letter-spacing:-.01em;box-shadow:var(--glow);transition:.15s}
+.btn:active{transform:scale(.97)}
+
+/* ================= 모달 ================= */
+#modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(4,6,10,.72);backdrop-filter:blur(4px);padding:20px}
+#modal.show{display:flex}
+.modal-card{width:min(94vw,440px);background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:24px 22px;box-shadow:var(--shadow-md)}
+.modal-card h3{font-size:17px;font-weight:800;margin-bottom:12px}
+#editArea{width:100%;min-height:96px;resize:none;border:1px solid var(--line2);border-radius:11px;padding:13px 14px;
+  font-size:16px;font-family:inherit;line-height:1.55;outline:none;background:rgba(var(--tint),.04);color:var(--ink)}
+#editArea:focus{border-color:var(--orange);background:rgba(255,107,26,.06)}
+.modal-foot{display:flex;gap:8px;margin-top:14px}
+.modal-foot button{flex:1;padding:13px;border-radius:10px;font-size:14.5px;font-weight:800;cursor:pointer;border:1px solid transparent}
+#editCancel{background:rgba(var(--tint),.05);color:var(--sub);border-color:var(--line2)}
+#editSave{background:linear-gradient(135deg,var(--orange),var(--orange2));color:var(--on-accent);box-shadow:var(--glow)}
+
+/* ================= 토스트 ================= */
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-130px);z-index:70;
+  background:var(--card2);color:var(--ink);border:1px solid var(--line2);font-weight:700;font-size:14px;padding:13px 22px;border-radius:12px;
+  box-shadow:var(--shadow-md);transition:transform .45s cubic-bezier(.2,1.3,.35,1);max-width:min(90vw,420px);text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.confetti{position:fixed;top:-14px;z-index:80;font-size:20px;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(112vh) rotate(680deg);opacity:.9}}
+
+/* ================= 스크린(발표) 모드 ================= */
+body.screen .appbar .in,body.screen .wrap{max-width:1560px}
+body.screen .wrap{padding:26px 44px 40px}
+body.screen .askbar,body.screen #gate{display:none}
+.sc-grid{display:grid;grid-template-columns:1fr 320px;gap:26px;align-items:start}
+body.screen .pagehead h1{font-size:clamp(26px,3vw,42px);line-height:1.2}
+body.screen .pagehead p{font-size:15px}
+body.screen .statrow{max-width:660px}
+body.screen .side{position:sticky;top:78px;max-height:calc(100vh - 96px);overflow-y:auto;scrollbar-width:thin;padding-right:2px}
+body.screen .side::-webkit-scrollbar{width:5px}
+body.screen .side::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+body.screen .kicker{font-size:12px}
+body.screen #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr));gap:14px;align-content:start}
+body.screen .q{padding:18px 20px 16px}
+body.screen .q .txt{font-size:clamp(17px,1.5vw,21px)}
+body.screen .q .foot{display:none}
+body.screen .q .top{padding-right:78px}
+body.screen .q .scvotes{position:absolute;top:15px;right:16px;display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-weight:700;font-size:18px;color:var(--sub);font-variant-numeric:tabular-nums}
+body.screen .q .modDel{position:absolute;bottom:10px;right:12px;opacity:0;transition:.2s;width:30px;height:30px;
+  border-radius:8px;border:1px solid var(--line2);background:var(--card2);color:var(--mut);cursor:pointer;font-size:13px}
+body.screen .q:hover .modDel{opacity:1}
+body.screen .q.first{grid-column:1/-1;background:linear-gradient(135deg,rgba(255,107,26,.14),var(--card) 62%);
+  border:1px solid rgba(255,107,26,.42);box-shadow:0 0 0 1px rgba(255,107,26,.12),0 18px 60px rgba(255,107,26,.16)}
+body.screen .q.first::before{background:linear-gradient(var(--orange),var(--orange2));top:18px;bottom:18px}
+body.screen .q.first .txt{font-size:clamp(22px,2.1vw,30px);font-weight:700}
+body.screen .q.first .scvotes{font-size:24px;color:var(--orange2)}
+body.screen .q.first::after{content:"◆ TOP";position:absolute;top:-10px;left:18px;font-family:var(--mono);font-size:10px;font-weight:700;
+  letter-spacing:.18em;color:var(--on-accent);background:linear-gradient(135deg,var(--orange),var(--orange2));padding:5px 11px;border-radius:6px;box-shadow:var(--glow)}
+.sidecard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow-sm);margin-bottom:14px}
+.sidecard .t{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.18em;color:var(--mut);margin-bottom:12px}
+.qrbox{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.qrbox img{width:100%;max-width:210px;border-radius:10px;border:1px solid var(--line2);background:#fff;padding:8px}
+.qrbox .u{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--orange-deep);word-break:break-all;line-height:1.35}
+.qrbox .h{font-size:12px;color:var(--mut)}
+.sc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sc-stats .stat{min-width:0}
+.ctlrow{display:flex;flex-direction:column;gap:8px}
+.ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;
+  background:rgba(var(--tint),.03);padding:11px 13px;font-size:13.5px;font-weight:600;color:var(--sub);cursor:pointer;transition:.15s;width:100%;text-align:left}
+.ctl:hover{border-color:rgba(255,107,26,.45);color:var(--orange-deep)}
+.ctl .st{font-family:var(--mono);font-size:11px;color:var(--mut);font-weight:500;flex:none}
+.ctl.on{border-color:var(--orange);background:var(--orange-soft);color:var(--orange-deep)}
+select#bgmSel{border:none;background:transparent;font-family:var(--mono);font-size:12px;font-weight:600;color:inherit;outline:none;cursor:pointer;text-align:right}
+select#bgmSel option{background:var(--opt-bg);color:var(--ink)}
+
+/* --- TOPIC 컨트롤(강사) --- */
+.topicwrap{display:flex;flex-direction:column;gap:8px}
+.topic-presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tp{border:1px solid var(--line);background:rgba(var(--tint),.03);color:var(--sub);border-radius:9px;padding:9px 10px;
+  font-size:11.5px;font-weight:600;line-height:1.4;cursor:pointer;transition:.15s;text-align:left;word-break:keep-all}
+.tp:hover{border-color:rgba(42,220,224,.45);color:var(--ink);background:rgba(42,220,224,.07)}
+.tp.on{border-color:var(--cyan);background:rgba(42,220,224,.12);color:var(--cyan)}
+.topic-input{display:flex;gap:6px}
+#topicInput{flex:1;min-width:0;border:1px solid var(--line2);background:rgba(var(--tint),.04);color:var(--ink);
+  border-radius:10px;padding:10px 12px;font-size:13.5px;font-family:inherit;outline:none}
+#topicInput::placeholder{color:var(--mut)}
+#topicInput:focus{border-color:var(--cyan)}
+#topicSet{border:none;border-radius:10px;padding:0 14px;font-weight:800;font-size:13px;cursor:pointer;
+  background:linear-gradient(135deg,var(--cyan),#5FE9C4);color:var(--on-accent2)}
+#topicClear{border:1px solid var(--line2);background:rgba(var(--tint),.03);color:var(--mut);border-radius:10px;
+  padding:9px;font-size:12.5px;font-weight:700;cursor:pointer}
+#topicClear:hover{color:var(--ink);border-color:var(--line2)}
+
+/* ================= 반응형 ================= */
+@media (min-width:1800px){
+  body.screen .appbar .in,body.screen .wrap{max-width:1840px}
+  body.screen #list{grid-template-columns:repeat(auto-fill,minmax(min(420px,100%),1fr));gap:18px}
+  .sc-grid{grid-template-columns:1fr 360px;gap:32px}
+  .qrbox img{max-width:260px}
+}
+@media (max-width:1400px){
+  .sc-grid{grid-template-columns:1fr 280px;gap:20px}
+  body.screen .wrap{padding:22px 30px 34px}
+}
+@media (max-width:1080px){
+  .sc-grid{grid-template-columns:1fr;gap:18px}
+  .side{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;align-items:start}
+  .sidecard{margin-bottom:0}
+  body.screen .wrap{padding:20px 22px 32px}
+  body.screen #list{grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr))}
+  body.screen .side{position:static;max-height:none;overflow:visible}
+  .topic-presets{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+}
+@media (max-width:720px){
+  .appbar .in{padding:11px 14px;gap:10px}
+  .wrap{padding:16px 14px 172px}
+  body.screen .wrap{padding:16px 14px 28px}
+  .pagehead p{font-size:13px}
+  .qrbox{flex-direction:row;text-align:left;align-items:center}
+  .qrbox img{max-width:132px}
+  .qrbox .u{font-size:13px}
+  body.screen .q .txt{font-size:16px}
+  body.screen .q.first .txt{font-size:19px}
+}
+@media (max-width:480px){
+  .statrow{gap:6px}
+  .stat{padding:9px 10px;min-width:0;flex:1 1 0}
+  .stat .n{font-size:18px}
+  .stat .l{font-size:9px;letter-spacing:.06em}
+  .q{padding:13px 13px 11px}
+  .q .txt{font-size:15px}
+  .voteBtn{padding:8px 12px;font-size:12.5px}
+  .iconBtn{width:32px;height:32px}
+  .askbar{padding:8px 10px calc(10px + env(safe-area-inset-bottom))}
+  .askbar .inner{padding:6px;border-radius:12px}
+  #askBtn{padding:0 15px;font-size:13.5px}
+  .gate-card{padding:26px 18px 22px}
+  .avatars{grid-template-columns:repeat(4,1fr);gap:7px}
+}
+@media (max-width:360px){
+  .brandtxt b{font-size:14px}
+  .brandtxt span{font-size:9.5px}
+  .livechip{padding:5px 8px;font-size:10px}
+  .brandmark{width:30px;height:30px;font-size:13px}
+}
+@media (max-height:520px) and (orientation:landscape){
+  #gate{align-items:flex-start;padding:14px}
+  .gate-card{padding:20px 20px 18px}
+  .gate-card .gm{width:40px;height:40px;font-size:18px;margin-bottom:8px}
+  .gate-card h2{font-size:19px}
+  .gate-card p{margin-bottom:12px}
+  .avatars{grid-template-columns:repeat(12,1fr);margin-bottom:12px}
+  .avatars button{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+
+/* ================= 툴바 (정렬·필터) ================= */
+.toolbar{display:flex;align-items:center;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:rgba(var(--tint),.03);color:var(--mut);border-radius:8px;
+  padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
+.chip:hover{color:var(--ink);border-color:var(--line2)}
+.chip.on{border-color:var(--orange);background:var(--orange-soft);color:var(--orange-deep)}
+.chip .c{font-family:var(--mono);font-size:11px;opacity:.75;margin-left:4px}
+.toolbar .sp{flex:1}
+.sortBtn{border:1px solid var(--line);background:rgba(var(--tint),.03);color:var(--sub);border-radius:8px;
+  padding:7px 11px;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:.15s}
+.sortBtn:hover{border-color:var(--cyan);color:var(--cyan)}
+
+/* ================= 카드 상태: 핀 / 답변완료 ================= */
+.q.pinned{border-color:rgba(42,220,224,.5);background:linear-gradient(180deg,rgba(42,220,224,.09),var(--card))}
+.q.pinned::before{background:linear-gradient(var(--cyan),#5FE9C4)}
+.q .pinflag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--on-accent2);
+  background:linear-gradient(135deg,var(--cyan),#5FE9C4);padding:3px 8px;border-radius:5px;flex:none}
+.q.answered{opacity:.62}
+.q.answered .txt{text-decoration:line-through;text-decoration-color:rgba(var(--tint),.3)}
+.q .doneflag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--cyan);
+  border:1px solid rgba(42,220,224,.4);padding:2px 7px;border-radius:5px;flex:none}
+.hostrow{display:flex;gap:6px;position:absolute;right:14px;bottom:12px;opacity:0;transition:.2s}
+body.screen .q:hover .hostrow{opacity:1}
+.hostrow button{border:1px solid var(--line2);background:var(--card2);color:var(--mut);border-radius:8px;
+  height:30px;padding:0 10px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
+.hostrow button:hover{border-color:var(--cyan);color:var(--cyan)}
+.hostrow button.del:hover{border-color:#FF5A5A;color:#FF5A5A}
+
+/* ================= 라이브 리액션 ================= */
+.reactbar{display:flex;gap:6px;justify-content:center;margin-top:10px}
+.reactbar button{border:1px solid var(--line2);background:var(--card2);border-radius:10px;padding:8px 13px;font-size:17px;
+  cursor:pointer;transition:.14s;line-height:1}
+.reactbar button:hover{border-color:var(--orange);transform:translateY(-2px)}
+.reactbar button:active{transform:scale(.88)}
+#reactLayer{position:fixed;inset:0;pointer-events:none;z-index:75;overflow:hidden}
+.rfly{position:absolute;bottom:8%;font-size:30px;animation:rfly 2.6s ease-out forwards;filter:drop-shadow(0 4px 14px rgba(0,0,0,.5))}
+@keyframes rfly{0%{transform:translateY(0) scale(.6);opacity:0}
+  12%{opacity:1;transform:translateY(-24px) scale(1.12)}
+  100%{transform:translateY(-58vh) scale(.9) rotate(var(--rr,12deg));opacity:0}}
+
+/* ================= QR 확대 오버레이 ================= */
+#qrFull{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;
+  background:rgba(4,6,10,.94);backdrop-filter:blur(6px);padding:5vh 4vw;cursor:zoom-out}
+#qrFull.show{display:flex}
+.qrfull-in{text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px}
+.qrfull-in img{width:min(58vh,58vw);background:#fff;padding:16px;border-radius:16px}
+.qrfull-in .u{font-family:var(--mono);font-size:clamp(18px,2.6vw,34px);font-weight:700;color:var(--orange2);word-break:break-all}
+.qrfull-in .h{font-size:clamp(13px,1.4vw,18px);color:var(--mut)}
+
+/* ================= 데모 모드 배너 ================= */
+#demoBar{display:none;position:relative;z-index:31;font-size:12.5px;line-height:1.5;text-align:center;padding:8px 16px;
+  color:var(--orange-deep);background:var(--orange-soft);border-bottom:1px solid rgba(255,107,26,.3)}
+#demoBar.show{display:block}
+#demoBar a{color:inherit;font-weight:700}
+
+/* ================= 세션 배지(강사) ================= */
+.roomtag{font-family:var(--mono);font-size:10.5px;color:var(--mut);letter-spacing:.1em;margin-top:10px;text-align:center}
+
+</style>
+</head>
+<body>
+
+<header class="appbar">
+  <div class="in">
+    <div class="brandmark">Q</div>
+    <div class="brandtxt"><b id="orgTitle">LIVE Q&A</b><span>LIVE Q&A BOARD</span></div>
+    <div class="livechip off" id="connChip"><span class="d"></span><span id="connTxt">연결 중</span></div>
+  </div>
+</header>
+<div id="demoBar">데모 모드 — 같은 브라우저의 탭끼리만 연결돼요. 폰으로 참여받으려면 <a href="https://github.com/jinnyjiinlee/live-qa-board#3단계-실시간-연결-supabase-5분" target="_blank" rel="noopener">config.js에 Supabase 키</a>를 넣어주세요.</div>
+
+<!-- 입장 게이트 (참가자) -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gm">🙋</div>
+    <div class="org" id="gateOrg"></div>
+    <h2>Q&A 입장하기</h2>
+    <p>아바타를 고르고, 오늘 쓸 별명을 알려주세요</p>
+    <div class="avatars" id="avatars"></div>
+    <input id="nickInput" maxlength="10" placeholder="별명 (예: 궁금한 사자)" autocomplete="off">
+    <button class="btn" id="enterBtn">입장하기</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="sc-grid" id="scGrid">
+    <div>
+      <div class="pagehead">
+        <div class="kicker" id="kicker">LIVE SESSION</div>
+        <h1 id="headline">궁금한 건 <em>지금 바로</em> 올려주세요</h1>
+        <p id="subline">다른 분 질문이 나도 궁금하면 "나도 궁금해"를 눌러주세요 — 공감 많은 질문부터 답해드립니다.</p>
+      </div>
+      <div class="statrow" id="statrow">
+        <div class="stat hl"><div class="n" id="stQ">0</div><div class="l"><span id="stQlabel">질문</span></div></div>
+        <div class="stat"><div class="n" id="stV">0</div><div class="l">공감</div></div>
+        <div class="stat"><div class="n" id="stP">0</div><div class="l">접속</div></div>
+      </div>
+      <div class="toolbar" id="toolbar">
+        <button class="chip on" data-filter="all">전체 <span class="c" id="cAll">0</span></button>
+        <button class="chip" data-filter="open">미답변 <span class="c" id="cOpen">0</span></button>
+        <button class="chip" data-filter="mine" id="chipMine">내 글 <span class="c" id="cMine">0</span></button>
+        <span class="sp"></span>
+        <button class="sortBtn" id="sortBtn">▲ 공감순</button>
+      </div>
+      <div id="list"></div>
+    </div>
+
+    <aside class="side" id="sidePanel" style="display:none">
+      <div class="sidecard">
+        <div class="t">JOIN — 폰으로 입장</div>
+        <div class="qrbox"><img id="qrImg" alt="입장 QR"><div><div class="u" id="joinUrl"></div><div class="h">카메라로 QR을 찍으면 바로 입장돼요</div></div></div>
+      </div>
+      <div class="sidecard">
+        <div class="t">TOPIC — 지금 묻는 것</div>
+        <div class="topicwrap">
+          <div class="topic-presets" id="topicPresets"></div>
+          <div class="topic-input">
+            <input id="topicInput" maxlength="60" placeholder="직접 입력 (예: 오늘 가장 인상 깊었던 건?)" autocomplete="off">
+            <button id="topicSet">적용</button>
+          </div>
+          <button id="topicClear">주제 해제 — 자유 질문 모드로</button>
+        </div>
+      </div>
+
+      <div class="sidecard">
+        <div class="t">SOUND</div>
+        <div class="ctlrow">
+          <button class="ctl" id="sfxBtn"><span>🔔 효과음</span><span class="st" id="sfxSt">꺼짐</span></button>
+          <label class="ctl" id="bgmCtl" for="bgmSel"><span>🎵 배경음악</span>
+            <select id="bgmSel">
+              <option value="off">끄기</option>
+              <option value="lounge">라운지 (차분)</option>
+              <option value="quiz">퀴즈쇼 (긴장감)</option>
+              <option value="arcade">아케이드 (신남)</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div class="sidecard">
+        <div class="t">HOST — 진행 도구</div>
+        <div class="ctlrow">
+          <button class="ctl" id="fsBtn"><span>⛶ 전체화면</span><span class="st">F</span></button>
+          <button class="ctl" id="qrBtn"><span>▣ QR 크게 띄우기</span><span class="st">Q</span></button>
+          <button class="ctl" id="csvBtn"><span>⤓ CSV로 내려받기</span><span class="st">전체 기록</span></button>
+          <button class="ctl" id="hideDoneBtn"><span>✓ 답변완료 숨기기</span><span class="st" id="hideDoneSt">표시</span></button>
+          <button class="ctl" id="resetBtn"><span>🗑 전체 초기화</span><span class="st">새 세션</span></button>
+        </div>
+        <div class="roomtag" id="roomTag"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- 질문 입력 (참가자) -->
+<div class="askbar" id="askbar" style="display:none">
+  <div class="inner">
+    <input id="qInput" maxlength="120" placeholder="질문을 입력하세요 (120자)" autocomplete="off">
+    <button id="askBtn">올리기</button>
+  </div>
+  <div class="reactbar" id="reactbar">
+    <button data-react="👏">👏</button><button data-react="🔥">🔥</button>
+    <button data-react="💡">💡</button><button data-react="❤️">❤️</button><button data-react="😮">😮</button>
+  </div>
+</div>
+
+<!-- 질문 수정 모달 -->
+<div id="modal">
+  <div class="modal-card">
+    <h3>✏️ 질문 수정</h3>
+    <textarea id="editArea" maxlength="120"></textarea>
+    <div class="modal-foot"><button id="editCancel">취소</button><button id="editSave">수정 완료</button></div>
+  </div>
+</div>
+
+<div id="qrFull"><div class="qrfull-in">
+  <img id="qrFullImg" alt="입장 QR"><div class="u" id="qrFullUrl"></div><div class="h">폰 카메라로 QR을 찍으면 바로 입장돼요 · 클릭하면 닫힘</div>
+</div></div>
+<div id="reactLayer"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= 설정 (config.js) ================= */
+const CFG     = window.LIVEQA_CONFIG || {};
+const params  = new URLSearchParams(location.search);
+const DEF_ROOM= (CFG.defaultRoom||'main').replace(/[^a-z0-9-]/gi,'').toLowerCase() || 'main';
+const ROOM    = (params.get('room')||DEF_ROOM).replace(/[^a-z0-9-]/gi,'').toLowerCase() || DEF_ROOM;
+const ORG     = (params.get('org') || CFG.title || 'LIVE Q&A').slice(0,40);
+const IS_SCREEN = params.has('screen');
+const DEMO    = !(CFG.supabaseUrl && CFG.supabaseAnonKey);
+const AVATARS = (CFG.avatars&&CFG.avatars.length) ? CFG.avatars : ['🦁','🐯','🐰','🦊','🐼','🐨','🦄','🐳','🦉','🐙','🐹','🦖'];
+const $ = s=>document.querySelector(s);
+document.title = ORG==="LIVE Q&A" ? ORG : `LIVE Q&A — ${ORG}`;
+$('#orgTitle').textContent = ORG; $('#gateOrg').textContent = ORG;
+
+/* 내 정보(별명·공감 기록). 데모 모드는 탭마다 다른 참가자가 되도록 sessionStorage를 쓴다 */
+const store = {
+  k:'liveqa2:'+ROOM, box: DEMO ? sessionStorage : localStorage,
+  load(){try{return JSON.parse(this.box.getItem(this.k))||null}catch(e){return null}},
+  save(o){try{this.box.setItem(this.k,JSON.stringify(o))}catch(e){}}
+};
+let my = store.load() || {id:crypto.randomUUID(), nick:'', avatar:'', voted:[]};
+let state = {questions:[], topic:null};
+let lastLeader=null, editingId=null;
+
+/* ================= 오디오: 효과음 + 생성형 BGM (음원 파일 없음 — 저작권 프리) ================= */
+let AC=null, sfxOn=false, master=null;
+function ensureAC(){ if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)(); master=AC.createGain(); master.gain.value=1; master.connect(AC.destination);} if(AC.state==='suspended')AC.resume(); }
+function tone(freq,dur,{type='sine',gain=.1,when=0,slide=0}={}){
+  if(!AC)return;
+  const o=AC.createOscillator(),g=AC.createGain(),t0=AC.currentTime+when;
+  o.type=type;o.frequency.setValueAtTime(freq,t0);
+  if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide),t0+dur);
+  g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(gain,t0+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+  o.connect(g).connect(master);o.start(t0);o.stop(t0+dur+.05);
+}
+const sfx={
+  ask(){ if(!sfxOn)return; tone(523,.12,{type:'triangle',gain:.14}); tone(784,.2,{type:'triangle',gain:.12,when:.08}); },
+  vote(){ if(!sfxOn)return; tone(1046,.09,{type:'sine',gain:.09}); },
+  fanfare(){ if(!sfxOn)return; [523,659,784,1046].forEach((f,i)=>tone(f,.24,{type:'square',gain:.07,when:i*.09})); }
+};
+/* --- 생성형 BGM: 코드 진행 + 베이스 + 해트 패턴을 스타일별로 스케줄 --- */
+const BGM_STYLES={
+  lounge:{bpm:74, pad:'sine',   padGain:.045, bassGain:.05, hat:false,
+    prog:[[220,277.2,329.6],[174.6,220,261.6],[196,246.9,293.7],[164.8,207.7,246.9]], bass:[110,87.3,98,82.4]},
+  quiz:{  bpm:118,pad:'sawtooth',padGain:.018, bassGain:.055, hat:true,
+    prog:[[220,261.6,329.6],[220,261.6,329.6],[207.7,261.6,311.1],[233.1,277.2,349.2]], bass:[110,110,103.8,116.5]},
+  arcade:{bpm:132,pad:'square', padGain:.02,  bassGain:.05, hat:true,
+    prog:[[261.6,329.6,392],[196,246.9,392],[220,277.2,440],[196,246.9,392]], bass:[130.8,98,110,98]}
+};
+let bgm={style:null,timer:null,bar:0,next:0,gain:null};
+function bgmStop(){ clearInterval(bgm.timer); bgm.timer=null; bgm.style=null; if(bgm.gain){bgm.gain.gain.linearRampToValueAtTime(0,AC.currentTime+.4); bgm.gain=null;} }
+function bgmStart(name){
+  ensureAC(); bgmStop();
+  const st=BGM_STYLES[name]; if(!st)return;
+  bgm.style=st; bgm.bar=0; bgm.next=AC.currentTime+.1;
+  bgm.gain=AC.createGain(); bgm.gain.gain.value=1; bgm.gain.connect(master);
+  const beat=60/st.bpm, bar=beat*4;
+  bgm.timer=setInterval(()=>{
+    while(bgm.next<AC.currentTime+1.2){
+      const t0=bgm.next, chord=st.prog[bgm.bar%4], bass=st.bass[bgm.bar%4];
+      chord.forEach(f=>{ const o=AC.createOscillator(),g=AC.createGain();
+        o.type=st.pad;o.frequency.value=f;
+        g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(st.padGain,t0+bar*.25);
+        g.gain.linearRampToValueAtTime(.0001,t0+bar*.98);
+        o.connect(g).connect(bgm.gain);o.start(t0);o.stop(t0+bar); });
+      for(let b=0;b<4;b++){ const bt=t0+b*beat;
+        const o=AC.createOscillator(),g=AC.createGain();
+        o.type='triangle';o.frequency.value=bass;
+        g.gain.setValueAtTime(st.bassGain,bt);g.gain.exponentialRampToValueAtTime(.0001,bt+beat*.85);
+        o.connect(g).connect(bgm.gain);o.start(bt);o.stop(bt+beat);
+        if(st.hat){ const n=AC.createBufferSource(),nb=AC.createBuffer(1,2205,44100),d=nb.getChannelData(0);
+          for(let i=0;i<2205;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/2205,2);
+          n.buffer=nb; const ng=AC.createGain(),hp=AC.createBiquadFilter();hp.type='highpass';hp.frequency.value=7000;
+          ng.gain.value=.05; n.connect(hp).connect(ng).connect(bgm.gain); n.start(bt+beat*.5); }
+      }
+      bgm.bar++; bgm.next+=bar;
+    }
+  },240);
+}
+
+/* ================= 데모 채널: 키가 없을 때 같은 브라우저 탭끼리 연결 =================
+ * Supabase Realtime 채널과 같은 모양(on/subscribe/send/track/presenceState)으로 흉내 낸다. */
+function demoChannel(name, myId){
+  const bc = new BroadcastChannel(name), handlers = [], peers = {};
+  let meta = null, statusCb = null;
+  const emit = (kind, event, payload)=>handlers.forEach(h=>{ if(h.kind===kind && (!h.event || h.event===event)) h.cb({payload}); });
+  const syncPresence = ()=>emit('presence','sync');
+  const ping = ()=>{ if(meta){ peers[myId]={t:Date.now(),meta}; bc.postMessage({k:'p',id:myId,meta}); } };
+  bc.onmessage = ({data})=>{
+    if(data.k==='b') emit('broadcast', data.event, data.payload);
+    if(data.k==='p'){ peers[data.id]={t:Date.now(),meta:data.meta}; syncPresence(); }
+    if(data.k==='bye'){ delete peers[data.id]; syncPresence(); }
+  };
+  setInterval(()=>{ ping(); const now=Date.now(); let gone=false;
+    for(const id in peers) if(now-peers[id].t>9000){ delete peers[id]; gone=true; }
+    if(gone) syncPresence(); }, 3000);
+  addEventListener('pagehide', ()=>bc.postMessage({k:'bye',id:myId}));
+  const api = {
+    on(kind, filter, cb){ handlers.push({kind, event:filter&&filter.event, cb}); return api; },
+    subscribe(cb){ statusCb=cb; setTimeout(()=>cb('SUBSCRIBED'), 30); return api; },
+    send({event, payload}){ bc.postMessage({k:'b',event,payload}); emit('broadcast', event, payload); return Promise.resolve('ok'); },
+    track(m){ meta=m; ping(); syncPresence(); return Promise.resolve('ok'); },
+    presenceState(){ const o={}; for(const id in peers) o[id]=[peers[id].meta]; return o; }
+  };
+  return api;
+}
+
+/* ================= Supabase Realtime ================= */
+const ch = DEMO ? demoChannel('liveqa-'+ROOM, my.id)
+  : window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey)
+      .channel('liveqa-'+ROOM, {config:{presence:{key:my.id}, broadcast:{self:true}}});
+if(DEMO) $('#demoBar').classList.add('show');
+function setConn(ok){
+  $('#connChip').classList.toggle('off',!ok);
+  $('#connTxt').textContent = ok?'LIVE':'CONNECTING';
+}
+
+/* ================= 모드 · 카피 ================= */
+const PRESETS = (CFG.topicPresets&&CFG.topicPresets.length) ? CFG.topicPresets : [
+  '오전에 배운 것 중 가장 좋았던 건?',
+  '지금 가장 궁금한 건?',
+  '현업에 바로 써먹을 수 있겠다 싶은 건?',
+  '오늘 실습에서 막혔던 지점은?',
+  'AI에게 제일 먼저 시키고 싶은 일은?',
+  '오늘 한 줄 소감을 남겨주세요'
+];
+const isTopic = ()=>!!(state.topic&&state.topic.text);
+function copy(){
+  return isTopic() ? {
+    kicker:'NOW ASKING', vote:'공감', ph:'답변을 입력하세요 (120자)', btn:'보내기',
+    sub: IS_SCREEN ? '폰으로 답을 남겨주세요 — 공감 많은 답이 위로 올라갑니다.'
+                   : '한 줄이면 충분해요. 다른 분 답이 공감되면 눌러주세요.',
+    stat:'답변', empty:'첫 답변을 남겨보세요'
+  } : {
+    kicker:'LIVE Q&A', vote:'나도 궁금해', ph:'질문을 입력하세요 (120자)', btn:'올리기',
+    sub: IS_SCREEN ? '폰으로 질문을 올리면 이 화면에 실시간으로 떠오릅니다 — 공감 많은 질문부터 답해드려요.'
+                   : '다른 분 질문이 나도 궁금하면 "나도 궁금해"를 눌러주세요.',
+    stat:'질문', empty:'첫 질문의 주인공이 되어보세요'
+  };
+}
+function applyCopy(){
+  const c = copy();
+  $('#kicker').textContent = c.kicker;
+  if(isTopic()) $('#headline').textContent = state.topic.text;
+  else $('#headline').innerHTML = IS_SCREEN ? '궁금한 건 <em>지금 바로</em>' : '궁금한 건 <em>지금 바로</em> 올려주세요';
+  $('#subline').textContent = c.sub;
+  $('#stQlabel').textContent = c.stat;
+  if(!IS_SCREEN){
+    $('#qInput').placeholder = c.ph;
+    $('#askBtn').textContent = c.btn;
+  }
+}
+
+/* ---------- 스크린 = 상태 권한자 ---------- */
+function screenApply(type,p){
+  const find=id=>state.questions.find(q=>q.id===id);
+  if(type==='ask'){ if(find(p.id))return; state.questions.push({...p,votes:[],pinned:false,answered:false}); sfx.ask(); toast(`${p.avatar} ${p.nick} 님의 새 글!`); }
+  if(type==='vote'){ const q=find(p.qid); if(!q||q.votes.includes(p.voter))return; q.votes.push(p.voter); sfx.vote(); }
+  if(type==='edit'){ const q=find(p.qid); if(!q||q.by!==p.by)return; q.text=p.text; q.edited=true; }
+  if(type==='del'){ const q=find(p.qid); if(!q||(q.by!==p.by&&p.by!=='HOST'))return; state.questions=state.questions.filter(x=>x.id!==p.qid); }
+  if(type==='pin'){ const q=find(p.qid); if(!q)return; const on=!q.pinned; state.questions.forEach(x=>x.pinned=false); q.pinned=on; }
+  if(type==='answer'){ const q=find(p.qid); if(!q)return; q.answered=!q.answered; if(q.answered)q.pinned=false; }
+  if(type==='topic'){ state.topic = p.text ? {text:p.text, ts:Date.now()} : null; applyCopy(); if(p.text)sfx.fanfare(); }
+  if(type==='reset'){ state.questions=[]; }
+  persist(); broadcastState(); render();
+}
+function persist(){localStorage.setItem('liveqa2-screen:'+ROOM,JSON.stringify(state))}
+function restore(){try{const s=JSON.parse(localStorage.getItem('liveqa2-screen:'+ROOM));if(s&&s.questions)state={questions:s.questions,topic:s.topic||null}}catch(e){}}
+let bt=null;
+function broadcastState(){clearTimeout(bt);bt=setTimeout(()=>ch.send({type:'broadcast',event:'state',payload:state}),120)}
+
+ch.on('broadcast',{event:'ask'},   ({payload})=>IS_SCREEN&&screenApply('ask',payload))
+  .on('broadcast',{event:'vote'},  ({payload})=>IS_SCREEN&&screenApply('vote',payload))
+  .on('broadcast',{event:'edit'},  ({payload})=>IS_SCREEN&&screenApply('edit',payload))
+  .on('broadcast',{event:'del'},   ({payload})=>IS_SCREEN&&screenApply('del',payload))
+  .on('broadcast',{event:'hello'}, ()=>IS_SCREEN&&broadcastState())
+  .on('broadcast',{event:'react'}, ({payload})=>fly(payload.e))
+  .on('broadcast',{event:'state'}, ({payload})=>{ if(!IS_SCREEN){
+      const hadTopic = state.topic&&state.topic.text;
+      state={questions:payload.questions||[], topic:payload.topic||null};
+      const nowTopic = state.topic&&state.topic.text;
+      applyCopy(); render();
+      if(nowTopic && nowTopic!==hadTopic) toast('📣 새 주제가 올라왔어요!');
+    }})
+  .on('presence',{event:'sync'},()=>{
+    const n=Math.max(0,Object.keys(ch.presenceState()).length-(IS_SCREEN?1:0));
+    $('#stP').textContent=n;
+  })
+  .subscribe(async s=>{
+    setConn(s==='SUBSCRIBED');
+    if(s==='SUBSCRIBED'){
+      await ch.track({nick:my.nick||'host',screen:IS_SCREEN});
+      if(IS_SCREEN){restore();applyCopy();render();broadcastState();}
+      else ch.send({type:'broadcast',event:'hello',payload:{}});
+    }
+  });
+
+/* ================= 라이브 리액션 ================= */
+let lastFly=0;
+function fly(e){
+  const L=$('#reactLayer'); if(!L)return;
+  const n=document.createElement('div'); n.className='rfly'; n.textContent=e;
+  n.style.left=(6+Math.random()*86)+'vw';
+  n.style.setProperty('--rr',(Math.random()*60-30)+'deg');
+  n.style.animationDuration=(2.1+Math.random()*1.1)+'s';
+  L.appendChild(n); setTimeout(()=>n.remove(),3600);
+}
+
+/* ================= 렌더 ================= */
+let filterMode='all', sortMode='votes', hideDone=false;
+const ago=ts=>{const m=Math.floor((Date.now()-ts)/60000);return m<1?'방금':m<60?m+'분 전':Math.floor(m/60)+'시간 전'};
+const medal=i=>i===0?'👑':i===1?'🥈':i===2?'🥉':'';
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function ordered(){
+  let qs=[...state.questions];
+  qs.sort((a,b)=>{
+    if(!!b.pinned-!!a.pinned) return !!b.pinned-!!a.pinned;
+    if(!!a.answered-!!b.answered) return !!a.answered-!!b.answered;
+    return sortMode==='new' ? b.ts-a.ts : (b.votes.length-a.votes.length||a.ts-b.ts);
+  });
+  return qs;
+}
+function visible(qs){
+  let v=qs;
+  if(filterMode==='open') v=v.filter(q=>!q.answered);
+  if(filterMode==='mine') v=v.filter(q=>q.by===my.id);
+  if(IS_SCREEN&&hideDone) v=v.filter(q=>!q.answered);
+  return v;
+}
+function render(){
+  const list=$('#list'), all=ordered(), qs=visible(all), c=copy();
+  const totalV=all.reduce((a,q)=>a+q.votes.length,0);
+  $('#stQ').textContent=all.length; $('#stV').textContent=totalV;
+  $('#cAll').textContent=all.length;
+  $('#cOpen').textContent=all.filter(q=>!q.answered).length;
+  $('#cMine').textContent=all.filter(q=>q.by===my.id).length;
+  const rankOf={}; all.filter(q=>!q.answered).forEach((q,i)=>rankOf[q.id]=i);
+
+  if(!qs.length){
+    list.innerHTML=`<div class="empty"><div class="big">// NO ENTRIES YET</div><b>${filterMode==='all'?c.empty:'해당하는 글이 없어요'}</b><br>${IS_SCREEN?'폰으로 QR을 찍고 첫 글을 올려보세요':'아래 입력창에 편하게 남겨주세요'}</div>`;
+    lastLeader=null; return;
+  }
+  const prev={};[...list.children].forEach(el=>{if(el.dataset.id)prev[el.dataset.id]=el.getBoundingClientRect().top});
+  const known=new Set([...list.children].map(el=>el.dataset.id));
+  list.innerHTML=qs.map((q,i)=>{
+    const v=q.votes.length, mine=q.by===my.id, votedQ=my.voted.includes(q.id);
+    const first=IS_SCREEN&&i===0&&!q.answered&&filterMode!=='mine';
+    return `<div class="q ${mine?'mine':''} ${q.pinned?'pinned':''} ${q.answered?'answered':''} ${first?'first':''} ${known.size&&!known.has(q.id)?'pop':''}" data-id="${q.id}">
+      <div class="top">
+        <div class="avatar">${q.avatar}</div>
+        <span class="who">${esc(q.nick)}${mine?' <span class="me">(나)</span>':''}</span>
+        <span class="time">${ago(q.ts)}${q.edited?' · 수정됨':''}</span>
+        ${q.pinned?'<span class="pinflag">NOW</span>':''}
+        ${q.answered?'<span class="doneflag">DONE</span>':''}
+        <span class="rank">${!q.answered&&rankOf[q.id]!=null?medal(rankOf[q.id]):''}</span>
+      </div>
+      <div class="txt">${esc(q.text)}</div>
+      ${IS_SCREEN
+        ?`<div class="scvotes">🙌 ${v}</div>
+          <div class="hostrow">
+            <button data-pin="${q.id}">${q.pinned?'핀 해제':'📌 핀'}</button>
+            <button data-done="${q.id}">${q.answered?'되돌리기':'✓ 완료'}</button>
+            <button class="del" data-moddel="${q.id}">✕</button>
+          </div>`
+        :`<div class="foot">
+            <button class="voteBtn ${votedQ?'voted':''}" data-vote="${q.id}">🙌 ${c.vote} <span class="n">${v}</span></button>
+            ${mine?`<div class="own-actions">
+              <button class="iconBtn" data-edit="${q.id}" title="수정">✏️</button>
+              <button class="iconBtn" data-del="${q.id}" title="삭제">🗑</button></div>`:''}
+          </div>`}
+    </div>`}).join('');
+  [...list.children].forEach(el=>{
+    const id=el.dataset.id;if(id&&prev[id]!=null){
+      const d=prev[id]-el.getBoundingClientRect().top;
+      if(Math.abs(d)>4){el.style.transition='none';el.style.transform=`translateY(${d}px)`;
+        requestAnimationFrame(()=>{el.style.transition='';el.style.transform='';el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),450)});}
+    }});
+  const leader=qs[0]?.id;
+  if(IS_SCREEN&&leader&&lastLeader&&leader!==lastLeader&&sortMode==='votes'){sfx.fanfare();confetti();toast('👑 TOP이 바뀌었어요!');}
+  lastLeader=leader;
+}
+let toastT=null;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2300)}
+function confetti(){const em=['🎉','✨','🧡','⭐️','🎊'];
+  for(let i=0;i<26;i++){const s=document.createElement('div');s.className='confetti';
+    s.textContent=em[i%em.length];s.style.left=Math.random()*100+'vw';
+    s.style.animationDuration=(1.6+Math.random()*1.8)+'s';document.body.appendChild(s);setTimeout(()=>s.remove(),4200);}}
+
+/* ================= 툴바 (공통) ================= */
+$('#toolbar').addEventListener('click',e=>{
+  const f=e.target.closest('[data-filter]');
+  if(f){ filterMode=f.dataset.filter;
+    [...$('#toolbar').querySelectorAll('.chip')].forEach(x=>x.classList.toggle('on',x===f));
+    render(); }
+});
+$('#sortBtn').onclick=()=>{
+  sortMode = sortMode==='votes'?'new':'votes';
+  $('#sortBtn').textContent = sortMode==='votes'?'▲ 공감순':'◷ 최신순';
+  render();
+};
+
+/* ================= 모드별 UI ================= */
+if(IS_SCREEN){
+  document.body.classList.add('screen');
+  $('#sidePanel').style.display='';
+  $('#chipMine').style.display='none';
+  const jp=new URLSearchParams();
+  if(ROOM!==DEF_ROOM) jp.set('room',ROOM);
+  if(params.get('org')) jp.set('org',params.get('org'));
+  if(params.get('theme')) jp.set('theme',params.get('theme'));
+  const join=location.origin+location.pathname+(jp.toString()?'?'+jp.toString():'');
+  /* QR은 브라우저 안에서 직접 그림 (외부 QR 서버로 주소를 보내지 않음) */
+  const qrSrc=n=>{ const q=qrcode(0,'M'); q.addData(join); q.make();
+    const cell=Math.max(2,Math.floor(n/q.getModuleCount())); return q.createDataURL(cell,0); };
+  const joinShown=decodeURIComponent(join).replace(/^https?:\/\//,'').replace(/\+/g,' ');
+  $('#joinUrl').textContent=joinShown;
+  $('#qrImg').src=qrSrc(420);
+  $('#qrFullImg').src=qrSrc(900);
+  $('#qrFullUrl').textContent=joinShown;
+  $('#roomTag').textContent='ROOM · '+ROOM.toUpperCase();
+
+  /* TOPIC 컨트롤 */
+  const tp=$('#topicPresets');
+  PRESETS.forEach(t=>{const b=document.createElement('button');b.className='tp';b.textContent=t;
+    b.onclick=()=>{screenApply('topic',{text:t});markPreset();toast('주제를 띄웠어요 📣')};tp.appendChild(b);});
+  function markPreset(){[...tp.children].forEach(b=>b.classList.toggle('on', isTopic()&&b.textContent===state.topic.text));}
+  $('#topicSet').onclick=()=>{const t=$('#topicInput').value.trim();if(!t)return toast('주제를 입력해주세요');
+    screenApply('topic',{text:t});$('#topicInput').value='';markPreset();toast('주제를 띄웠어요 📣')};
+  $('#topicInput').addEventListener('keydown',e=>e.key==='Enter'&&$('#topicSet').click());
+  $('#topicClear').onclick=()=>{screenApply('topic',{text:''});markPreset();toast('자유 질문 모드로 돌아왔어요')};
+
+  /* 사운드 */
+  $('#sfxBtn').onclick=()=>{ensureAC();sfxOn=!sfxOn;$('#sfxBtn').classList.toggle('on',sfxOn);$('#sfxSt').textContent=sfxOn?'ON':'OFF';if(sfxOn)sfx.ask();};
+  $('#bgmSel').onchange=e=>{const v=e.target.value;$('#bgmCtl').classList.toggle('on',v!=='off');v==='off'?bgmStop():bgmStart(v);};
+
+  /* 진행 도구 */
+  $('#fsBtn').onclick=()=>{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen?.()};
+  $('#qrBtn').onclick=()=>$('#qrFull').classList.add('show');
+  $('#qrFull').onclick=()=>$('#qrFull').classList.remove('show');
+  $('#hideDoneBtn').onclick=()=>{hideDone=!hideDone;$('#hideDoneBtn').classList.toggle('on',hideDone);
+    $('#hideDoneSt').textContent=hideDone?'숨김':'표시';render()};
+  $('#csvBtn').onclick=()=>{
+    const rows=[['순번','작성자','내용','공감','올린시각','상태']];
+    ordered().forEach((q,i)=>rows.push([i+1,q.nick,q.text,q.votes.length,new Date(q.ts).toLocaleString('ko-KR'),q.answered?'완료':'미답변']));
+    const csv='﻿'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+    a.download=`liveqa_${ROOM}_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV를 내려받았어요 ⤓');
+  };
+  $('#resetBtn').onclick=()=>{if(confirm('모든 글을 지우고 새 세션을 시작할까요?'))screenApply('reset',{});};
+
+  document.addEventListener('click',e=>{
+    const pin=e.target.closest?.('[data-pin]')?.dataset.pin;
+    if(pin){screenApply('pin',{qid:pin});return;}
+    const done=e.target.closest?.('[data-done]')?.dataset.done;
+    if(done){screenApply('answer',{qid:done});return;}
+    const del=e.target.closest?.('[data-moddel]')?.dataset.moddel;
+    if(del&&confirm('이 글을 삭제할까요?'))screenApply('del',{qid:del,by:'HOST'});
+  });
+  document.addEventListener('keydown',e=>{
+    if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName))return;
+    const k=e.key.toLowerCase();
+    if(k==='f')$('#fsBtn').click();
+    if(k==='q')$('#qrFull').classList.toggle('show');
+    if(k==='s')$('#sortBtn').click();
+    if(e.key==='Escape')$('#qrFull').classList.remove('show');
+  });
+  setInterval(render,45000); // "N분 전" 갱신
+}else{
+  const av=$('#avatars');
+  AVATARS.forEach(a=>{const b=document.createElement('button');b.textContent=a;
+    b.onclick=()=>{[...av.children].forEach(x=>x.classList.remove('sel'));b.classList.add('sel');my.avatar=a};
+    av.appendChild(b);});
+  if(my.nick)$('#nickInput').value=my.nick;
+  if(my.avatar)[...av.children].find(b=>b.textContent===my.avatar)?.classList.add('sel');
+  $('#enterBtn').onclick=()=>{
+    const n=$('#nickInput').value.trim();
+    if(!n){$('#nickInput').focus();return toast('별명을 입력해주세요!')}
+    my.nick=n;my.avatar=my.avatar||AVATARS[Math.floor(Math.random()*AVATARS.length)];
+    store.save(my);
+    $('#gate').style.display='none';$('#askbar').style.display='block';
+    ch.track({nick:my.nick,screen:false});
+  };
+  $('#nickInput').addEventListener('keydown',e=>e.key==='Enter'&&$('#enterBtn').click());
+
+  let lastAsk=0;
+  function ask(){
+    const t=$('#qInput').value.trim(); if(!t)return;
+    const gap = isTopic()?5000:10000;
+    if(Date.now()-lastAsk<gap)return toast(`숨 고르고, ${gap/1000}초 뒤에 다시 🙏`);
+    lastAsk=Date.now();
+    ch.send({type:'broadcast',event:'ask',payload:{id:crypto.randomUUID(),by:my.id,nick:my.nick,avatar:my.avatar,text:t,ts:Date.now()}});
+    $('#qInput').value='';toast(isTopic()?'답변 올라갔어요! 🚀':'질문 올라갔어요! 🚀');
+  }
+  $('#askBtn').onclick=ask;
+  $('#qInput').addEventListener('keydown',e=>e.key==='Enter'&&ask());
+
+  /* 라이브 리액션 */
+  let lastReact=0;
+  $('#reactbar').addEventListener('click',e=>{
+    const em=e.target.closest('[data-react]')?.dataset.react; if(!em)return;
+    if(Date.now()-lastReact<600)return; lastReact=Date.now();
+    ch.send({type:'broadcast',event:'react',payload:{e:em}});
+  });
+
+  /* iOS 키보드가 입력창을 가리지 않도록 보정 */
+  if(window.visualViewport){
+    const vv=window.visualViewport;
+    const fix=()=>{const kb=Math.max(0,window.innerHeight-vv.height-vv.offsetTop);
+      document.documentElement.style.setProperty('--kb',kb+'px')};
+    vv.addEventListener('resize',fix); vv.addEventListener('scroll',fix); fix();
+  }
+
+  document.addEventListener('click',e=>{
+    const c=e.target.closest?.bind(e.target);
+    const vote=c('[data-vote]')?.dataset.vote;
+    if(vote&&!my.voted.includes(vote)){my.voted.push(vote);store.save(my);
+      ch.send({type:'broadcast',event:'vote',payload:{qid:vote,voter:my.id}});render();return;}
+    const ed=c('[data-edit]')?.dataset.edit;
+    if(ed){const q=state.questions.find(x=>x.id===ed);if(!q)return;
+      editingId=ed;$('#editArea').value=q.text;$('#modal').classList.add('show');$('#editArea').focus();return;}
+    const del=c('[data-del]')?.dataset.del;
+    if(del&&confirm('내 글을 삭제할까요?')){
+      const el=document.querySelector(`.q[data-id="${del}"]`);el&&el.classList.add('gone');
+      setTimeout(()=>ch.send({type:'broadcast',event:'del',payload:{qid:del,by:my.id}}),250);return;}
+  });
+  $('#editCancel').onclick=()=>{$('#modal').classList.remove('show');editingId=null};
+  $('#editSave').onclick=()=>{
+    const t=$('#editArea').value.trim();
+    if(t&&editingId)ch.send({type:'broadcast',event:'edit',payload:{qid:editingId,by:my.id,text:t}});
+    $('#modal').classList.remove('show');editingId=null;toast('수정했어요 ✏️');
+  };
+  setInterval(render,45000);
+}
+applyCopy(); render();
+
+</script>
+</body>
+</html>
