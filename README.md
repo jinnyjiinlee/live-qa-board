@@ -3,6 +3,8 @@
 강의·세미나·사내 교육 중에 **참가자가 폰으로 질문을 올리고, 공감 많은 질문부터 강사가 답하는** 실시간 보드예요.
 서버 없이 HTML 파일 하나로 돌아가고, 코딩을 몰라도 설정 파일 한 곳만 고치면 바로 쓸 수 있어요.
 
+**바로 써보기(데모 모드):** 강사 화면 https://jinnyjiinlee.github.io/live-qa-board/?screen · 참가자 화면 https://jinnyjiinlee.github.io/live-qa-board/ — 같은 브라우저에서 두 탭을 나란히 열어보세요
+
 ![강사 화면](docs/screen-dark.png)
 
 | 참가자 (폰) | 입장 화면 (라이트 테마) |
