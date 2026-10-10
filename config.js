@@ -22,11 +22,11 @@ window.LIVEQA_CONFIG = {
   title: '우리 강의',
 
   // 브랜딩 — 교육회사·기관 색으로 바꿔 쓰세요
-  accent: '#FF6B1A',        // 강조색 (버튼·TOP 카드·그래프). 예: '#2563EB'
+  accent: '#4F46E5',        // 강조색 (버튼·TOP 카드·그래프). 예: '#0EA5E9', '#E11D48'
   logo: '',                 // 로고 이미지 경로. 예: 'logo.png' (같은 폴더에 두세요). 비우면 글자 마크
 
-  // 'dark' 또는 'light' (주소 뒤 ?theme=light 로 덮어쓸 수 있어요)
-  theme: 'dark',
+  // 'light'(기본, 밝은 강의장에 좋음) 또는 'dark' (주소 뒤 ?theme=dark 로 덮어쓸 수 있어요)
+  theme: 'light',
 
   // 방 이름 기본값 — 여러 강의를 동시에 하면 ?room=이름 으로 나누세요
   defaultRoom: 'main',

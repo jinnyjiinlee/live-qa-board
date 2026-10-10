@@ -9,17 +9,17 @@
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<meta name="theme-color" content="#07090D">
+<meta name="theme-color" content="#F5F6FB">
 <script src="config.js"></script>
 <script>
 /* 테마·강조색은 그리기 전에 적용 (깜빡임 방지) */
 (function(){
-  var c=window.LIVEQA_CONFIG||{}, q=new URLSearchParams(location.search), t=q.get('theme')||c.theme;
-  if(t==='light')document.documentElement.setAttribute('data-theme','light');
+  var c=window.LIVEQA_CONFIG||{}, q=new URLSearchParams(location.search), t=q.get('theme')||c.theme||'light';
+  if(t!=='dark')document.documentElement.setAttribute('data-theme','light');
   var hex=(c.accent||'').trim();
   if(/^#[0-9a-f]{6}$/i.test(hex)){
     var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-    var L=function(v){return Math.round(v+(255-v)*.28)};
+    var L=function(v){return Math.round(v+(255-v)*.32)};
     var s=document.documentElement.style;
     s.setProperty('--orange',hex); s.setProperty('--orange2','rgb('+L(r)+','+L(g)+','+L(b)+')');
     s.setProperty('--orange-rgb',r+','+g+','+b);
@@ -30,32 +30,32 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous"></script>
 <style>
 :root{
-  /* --- 다크 테마 (기본) --- */
-  --bg:#07090D; --bg2:#0C1017; --card:#111722; --card2:#151C29;
+  /* --- 다크 테마 (?theme=dark) : 네이비 --- */
+  --bg:#0B0F1A; --bg2:#0F1526; --card:#141B2D; --card2:#1A2238;
   --tint:255,255,255;
-  --line:rgba(var(--tint),.075); --line2:rgba(var(--tint),.16);
-  --ink:#E8EDF7; --sub:#98A5BA; --mut:#67728A;
-  --orange:#FF6B1A; --orange2:#FF9B4D; --orange-rgb:255,107,26;
-  --orange-deep:var(--orange2); --orange-soft:rgba(var(--orange-rgb),.12);
-  --cyan:#2ADCE0; --gold:#FFC24B; --green:#4ADE80; --red:#FF5A5A;
-  --on-accent:#0b0d12; --on-accent2:#06231f; --appbar:rgba(9,12,18,.72); --dot-border:#0A0D13; --opt-bg:#12161E;
-  --shadow-sm:0 1px 2px rgba(0,0,0,.5),0 8px 24px rgba(0,0,0,.32);
-  --shadow-md:0 12px 48px rgba(0,0,0,.55);
-  --glow:0 0 0 1px rgba(var(--orange-rgb),.35),0 8px 30px rgba(var(--orange-rgb),.28);
+  --line:rgba(var(--tint),.08); --line2:rgba(var(--tint),.16);
+  --ink:#EEF2FF; --sub:#A3ADC8; --mut:#6B7694;
+  --orange:#6366F1; --orange2:#A5B4FC; --orange-rgb:99,102,241;
+  --orange-deep:var(--orange2); --orange-soft:rgba(var(--orange-rgb),.16);
+  --cyan:#2DD4BF; --cyan2:#5EEAD4; --cyan-rgb:45,212,191; --gold:#FBBF24; --green:#4ADE80; --red:#FB7185;
+  --on-accent:#FFFFFF; --on-accent2:#042F2E; --appbar:rgba(11,15,26,.74); --dot-border:#0B0F1A; --opt-bg:#141B2D;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.45),0 8px 24px rgba(0,0,0,.3);
+  --shadow-md:0 12px 48px rgba(0,0,0,.5);
+  --glow:0 0 0 1px rgba(var(--orange-rgb),.35),0 8px 30px rgba(var(--orange-rgb),.3);
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 }
-/* --- 라이트 테마: ?theme=light 또는 config.js theme:'light' --- */
+/* --- 라이트 테마 (기본) : 흰 바탕 + 인디고 --- */
 :root[data-theme="light"]{
-  --bg:#F5F8FF; --bg2:#EEF2FB; --card:#FFFFFF; --card2:#F7F9FE;
-  --tint:15,23,42;
-  --line:rgba(var(--tint),.09); --line2:rgba(var(--tint),.18);
-  --ink:#0F172A; --sub:#475569; --mut:#8A94A6;
-  --orange-deep:color-mix(in srgb,var(--orange) 78%,#000); --orange-soft:rgba(var(--orange-rgb),.10);
-  --cyan:#0891B2; --gold:#B7791F; --green:#16A34A; --red:#DC2626;
-  --on-accent:#FFFFFF; --on-accent2:#FFFFFF; --appbar:rgba(245,248,255,.78); --dot-border:#FFFFFF; --opt-bg:#FFFFFF;
-  --shadow-sm:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
-  --shadow-md:0 12px 48px rgba(15,23,42,.14);
-  --glow:0 0 0 1px rgba(var(--orange-rgb),.25),0 8px 24px rgba(var(--orange-rgb),.22);
+  --bg:#F5F6FB; --bg2:#EEF0F8; --card:#FFFFFF; --card2:#F8F9FD;
+  --tint:17,24,39;
+  --line:rgba(var(--tint),.08); --line2:rgba(var(--tint),.16);
+  --ink:#0F172A; --sub:#4B5563; --mut:#9AA3B5;
+  --orange-deep:color-mix(in srgb,var(--orange) 85%,#000); --orange-soft:rgba(var(--orange-rgb),.09);
+  --cyan:#0D9488; --cyan2:#2DD4BF; --cyan-rgb:13,148,136; --gold:#D97706; --green:#16A34A; --red:#E11D48;
+  --on-accent:#FFFFFF; --on-accent2:#FFFFFF; --appbar:rgba(255,255,255,.8); --dot-border:#FFFFFF; --opt-bg:#FFFFFF;
+  --shadow-sm:0 1px 2px rgba(17,24,39,.05),0 6px 20px rgba(17,24,39,.05);
+  --shadow-md:0 14px 44px rgba(17,24,39,.12);
+  --glow:0 0 0 1px rgba(var(--orange-rgb),.18),0 8px 24px rgba(var(--orange-rgb),.22);
 }
 *{margin:0;padding:0;box-sizing:border-box}
 img,svg{max-width:100%}
@@ -63,11 +63,10 @@ html,body{height:100%}
 body{font-family:'Pretendard Variable',Pretendard,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
   background:
-    linear-gradient(rgba(var(--tint),.028) 1px,transparent 1px) 0 0/64px 64px,
-    linear-gradient(90deg,rgba(var(--tint),.028) 1px,transparent 1px) 0 0/64px 64px,
-    radial-gradient(820px 520px at 86% -10%, rgba(var(--orange-rgb),.16), transparent 62%),
-    radial-gradient(640px 460px at -8% 108%, rgba(42,220,224,.10), transparent 60%);
-  mask-image:radial-gradient(120% 100% at 50% 0%,#000 55%,transparent 100%);}
+    radial-gradient(rgba(var(--tint),.10) 1px,transparent 1.2px) 0 0/22px 22px,
+    radial-gradient(900px 560px at 88% -12%, rgba(var(--orange-rgb),.14), transparent 62%),
+    radial-gradient(700px 500px at -10% 108%, rgba(var(--cyan-rgb),.10), transparent 60%);
+  mask-image:radial-gradient(120% 100% at 50% 0%,#000 50%,transparent 100%);}
 button,input,select,textarea{font-family:inherit}
 ::selection{background:rgba(var(--orange-rgb),.35)}
 
@@ -106,25 +105,25 @@ body.screen .timerchip .lb{font-size:13px}
 /* ================= 공통 레이아웃 ================= */
 .wrap{position:relative;z-index:1;max-width:660px;margin:0 auto;padding:22px 18px 178px}
 .pagehead{margin:4px 0 16px}
-.kicker{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.18em;color:var(--cyan);margin-bottom:9px}
-.kicker::before{content:"";width:16px;height:1px;background:var(--cyan);opacity:.7}
+.kicker{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.18em;color:var(--orange);margin-bottom:9px}
+.kicker::before{content:"";width:16px;height:2px;border-radius:2px;background:var(--orange);opacity:.8}
 .pagehead h1{font-size:clamp(21px,5.6vw,27px);font-weight:800;letter-spacing:-.03em;line-height:1.28;word-break:keep-all}
 .pagehead h1 em{font-style:normal;background:linear-gradient(90deg,var(--orange2),var(--orange));-webkit-background-clip:text;background-clip:text;color:transparent}
 .pagehead p{margin-top:8px;font-size:13.5px;color:var(--sub);font-weight:400;word-break:keep-all;line-height:1.6}
 .statrow{display:flex;gap:8px;margin:16px 0 12px;flex-wrap:wrap}
-.stat{flex:1;min-width:88px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px;box-shadow:var(--shadow-sm)}
+.stat{flex:1;min-width:88px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 14px;box-shadow:var(--shadow-sm)}
 .stat .n{font-family:var(--mono);font-size:21px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stat .l{font-family:var(--mono);font-size:10px;color:var(--mut);font-weight:500;margin-top:3px;letter-spacing:.1em;text-transform:uppercase}
 .stat.hl .n{color:var(--orange2)}
-.stat.hl{border-color:rgba(var(--orange-rgb),.28)}
+.stat.hl{border-color:rgba(var(--orange-rgb),.3);background:linear-gradient(180deg,rgba(var(--orange-rgb),.07),var(--card))}
 .panel{display:none}.panel.on{display:block}
 
 /* ================= 질문 카드 ================= */
 #list{display:flex;flex-direction:column;gap:10px}
-.q{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px 13px;box-shadow:var(--shadow-sm);
+.q{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px 16px 13px;box-shadow:var(--shadow-sm);
   transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .3s,border-color .3s,background .3s}
 .q::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;background:transparent;transition:.3s}
-.q:hover{border-color:var(--line2)}
+.q:hover{border-color:var(--line2);box-shadow:var(--shadow-md)}
 .q.mine{background:linear-gradient(180deg,rgba(var(--orange-rgb),.07),var(--card));border-color:rgba(var(--orange-rgb),.28)}
 .q.mine::before{background:linear-gradient(var(--orange),var(--orange2))}
 .q .top{display:flex;align-items:center;gap:8px;margin-bottom:8px;min-width:0}
@@ -135,7 +134,7 @@ body.screen .timerchip .lb{font-size:13px}
 .q .rank{margin-left:auto;font-size:16px;flex:none;display:flex;align-items:center}
 .rankno{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--mut);border:1px solid var(--line2);border-radius:6px;padding:2px 7px;letter-spacing:.04em}
 .q .txt{font-size:15.5px;line-height:1.58;font-weight:450;color:var(--ink);word-break:keep-all;overflow-wrap:anywhere;white-space:pre-wrap}
-.q .ans{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(42,220,224,.07);border:1px solid rgba(42,220,224,.25);font-size:13.5px;line-height:1.55;color:var(--ink);white-space:pre-wrap;word-break:keep-all}
+.q .ans{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(var(--cyan-rgb),.07);border:1px solid rgba(var(--cyan-rgb),.25);font-size:13.5px;line-height:1.55;color:var(--ink);white-space:pre-wrap;word-break:keep-all}
 .q .ans b{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--cyan);display:block;margin-bottom:4px}
 .q .foot{display:flex;align-items:center;gap:8px;margin-top:12px}
 .voteBtn{display:flex;align-items:center;gap:7px;border:1px solid var(--line2);background:rgba(var(--tint),.04);color:var(--sub);border-radius:9px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;transition:.16s}
@@ -208,8 +207,8 @@ body.screen .timerchip .lb{font-size:13px}
     linear-gradient(rgba(var(--tint),.03) 1px,transparent 1px) 0 0/56px 56px,
     linear-gradient(90deg,rgba(var(--tint),.03) 1px,transparent 1px) 0 0/56px 56px,
     radial-gradient(660px 420px at 85% -5%,rgba(var(--orange-rgb),.18),transparent 60%),
-    radial-gradient(520px 380px at 0% 105%,rgba(42,220,224,.12),transparent 60%)}
-.gate-card{position:relative;width:min(94vw,420px);padding:34px 26px 28px;background:var(--card);border:1px solid var(--line2);border-radius:18px;text-align:center;box-shadow:var(--shadow-md)}
+    radial-gradient(520px 380px at 0% 105%,rgba(var(--cyan-rgb),.12),transparent 60%)}
+.gate-card{position:relative;width:min(94vw,420px);padding:34px 26px 28px;background:var(--card);border:1px solid var(--line);border-radius:22px;text-align:center;box-shadow:var(--shadow-md)}
 .gate-card .gm{width:52px;height:52px;margin:0 auto 14px;border-radius:14px;font-size:22px;background:linear-gradient(135deg,var(--orange),var(--orange2));box-shadow:var(--glow);display:flex;align-items:center;justify-content:center;overflow:hidden}
 .gate-card .gm img{width:100%;height:100%;object-fit:cover}
 .gate-card .gm.logo{background:#fff;box-shadow:none;border:1px solid var(--line2)}
@@ -270,7 +269,7 @@ body.screen .timerchip .lb{font-size:13px}
 .bar .lb .pc{font-family:var(--mono);font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
 .bar .lb .pc b{color:var(--ink);font-size:15px}
 .bar .tr{height:14px;border-radius:7px;background:rgba(var(--tint),.07);overflow:hidden}
-.bar .fl{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--orange),var(--orange2));width:0;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.bar .fl{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--orange),color-mix(in srgb,var(--orange) 55%,var(--cyan)));width:0;transition:width .8s cubic-bezier(.22,1,.36,1)}
 .bar.top .fl{box-shadow:0 0 18px rgba(var(--orange-rgb),.5)}
 .bar.mine .lb{color:var(--orange-deep)}
 .pollfoot{display:flex;align-items:center;gap:10px;margin-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--mut);flex-wrap:wrap}
@@ -323,7 +322,7 @@ body.screen .q .txt{font-size:clamp(17px,1.5vw,21px)}
 body.screen .q .foot{display:none}
 body.screen .q .top{padding-right:78px}
 body.screen .q .scvotes{position:absolute;top:15px;right:16px;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-weight:700;font-size:18px;color:var(--sub);font-variant-numeric:tabular-nums}
-body.screen .q.first{grid-column:1/-1;background:linear-gradient(135deg,rgba(var(--orange-rgb),.14),var(--card) 62%);border:1px solid rgba(var(--orange-rgb),.42);
+body.screen .q.first{grid-column:1/-1;background:linear-gradient(135deg,rgba(var(--orange-rgb),.12),var(--card) 58%);border:1px solid rgba(var(--orange-rgb),.4);
   box-shadow:0 0 0 1px rgba(var(--orange-rgb),.12),0 18px 60px rgba(var(--orange-rgb),.16);animation:topglow 3.2s ease-in-out infinite}
 @keyframes topglow{50%{box-shadow:0 0 0 1px rgba(var(--orange-rgb),.22),0 18px 70px rgba(var(--orange-rgb),.3)}}
 body.screen .q.first::before{background:linear-gradient(var(--orange),var(--orange2));top:18px;bottom:18px}
@@ -353,8 +352,8 @@ select#bgmSel option{background:var(--opt-bg);color:var(--ink)}
 .seg button.on{background:var(--card2);color:var(--ink);box-shadow:var(--shadow-sm);border-color:var(--line2)}
 .sub-t{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--mut);margin:14px 0 8px}
 .preset{border:1px solid var(--line);background:rgba(var(--tint),.03);color:var(--sub);border-radius:9px;padding:9px 10px;font-size:11.5px;font-weight:600;line-height:1.4;cursor:pointer;transition:.15s;text-align:left;word-break:keep-all;width:100%}
-.preset:hover{border-color:rgba(42,220,224,.45);color:var(--ink);background:rgba(42,220,224,.07)}
-.preset.on{border-color:var(--cyan);background:rgba(42,220,224,.12);color:var(--cyan)}
+.preset:hover{border-color:rgba(var(--cyan-rgb),.45);color:var(--ink);background:rgba(var(--cyan-rgb),.07)}
+.preset.on{border-color:var(--cyan);background:rgba(var(--cyan-rgb),.12);color:var(--cyan)}
 .preset .tag{font-family:var(--mono);font-size:9.5px;color:var(--mut);margin-left:6px}
 .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .presets.one{grid-template-columns:1fr}
@@ -363,7 +362,7 @@ select#bgmSel option{background:var(--opt-bg);color:var(--ink)}
 .fin::placeholder{color:var(--mut)}
 .fin:focus{border-color:var(--cyan)}
 .fsel{border:1px solid var(--line2);background:var(--card2);color:var(--ink);border-radius:10px;padding:0 10px;font-size:12.5px;outline:none;cursor:pointer}
-.fbtn{border:none;border-radius:10px;padding:0 14px;font-weight:800;font-size:13px;cursor:pointer;background:linear-gradient(135deg,var(--cyan),#5FE9C4);color:var(--on-accent2);white-space:nowrap}
+.fbtn{border:none;border-radius:10px;padding:0 14px;font-weight:800;font-size:13px;cursor:pointer;background:linear-gradient(135deg,var(--cyan),var(--cyan2));color:var(--on-accent2);white-space:nowrap}
 .fbtn.ghost{background:rgba(var(--tint),.03);color:var(--mut);border:1px solid var(--line2)}
 .fbtn.ghost:hover{color:var(--ink)}
 textarea.fin{min-height:74px;resize:vertical;line-height:1.5;width:100%}
@@ -379,12 +378,12 @@ textarea.fin{min-height:74px;resize:vertical;line-height:1.5;width:100%}
 .sidecard.collapsed .t .chev{transform:rotate(-90deg)}
 
 /* 카드 상태: 핀 / 답변완료 / 강사 행 */
-.q.pinned{border-color:rgba(42,220,224,.5);background:linear-gradient(180deg,rgba(42,220,224,.09),var(--card))}
-.q.pinned::before{background:linear-gradient(var(--cyan),#5FE9C4)}
-.q .pinflag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--on-accent2);background:linear-gradient(135deg,var(--cyan),#5FE9C4);padding:3px 8px;border-radius:5px;flex:none}
+.q.pinned{border-color:rgba(var(--cyan-rgb),.5);background:linear-gradient(180deg,rgba(var(--cyan-rgb),.09),var(--card))}
+.q.pinned::before{background:linear-gradient(var(--cyan),var(--cyan2))}
+.q .pinflag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--on-accent2);background:linear-gradient(135deg,var(--cyan),var(--cyan2));padding:3px 8px;border-radius:5px;flex:none}
 .q.answered{opacity:.62}
 .q.answered .txt{text-decoration:line-through;text-decoration-color:rgba(var(--tint),.3)}
-.q .doneflag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--cyan);border:1px solid rgba(42,220,224,.4);padding:2px 7px;border-radius:5px;flex:none}
+.q .doneflag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--cyan);border:1px solid rgba(var(--cyan-rgb),.4);padding:2px 7px;border-radius:5px;flex:none}
 .hostrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
 body.screen .hostrow{position:absolute;right:14px;bottom:12px;opacity:0;transition:.2s;margin:0}
 body.screen .q:hover .hostrow{opacity:1}
@@ -1018,7 +1017,7 @@ function renderCloud(){
   const c=state.cloud; if(!c){el.innerHTML='<div class="empty"><b>워드클라우드가 아직 없어요</b></div>';return;}
   const entries=Object.entries(c.words||{}).sort((a,b)=>b[1]-a[1]).slice(0,60), max=entries.length?entries[0][1]:1;
   const mine=(my.cw[c.id]||[]);
-  const cloud=entries.length?`<div class="cloud">${entries.map(([w,n],i)=>{const s=(IS_SCREEN?22:15)+(IS_SCREEN?54:26)*Math.sqrt(n/max);
+  const cloud=entries.length?`<div class="cloud">${entries.map(([w,n],i)=>{const s=(IS_SCREEN?20:15)+(IS_SCREEN?42:24)*Math.sqrt(n/max);
     return `<span class="w c${i%4} r${(w.length+i)%3}" style="font-size:${s.toFixed(1)}px">${esc(w)}${n>1?`<small>×${n}</small>`:''}</span>`}).join('')}</div>`
     :`<div class="cloud"><span style="color:var(--mut);font-size:14px">${IS_CTRL?'단어가 올라오면 여기서 커져요':'첫 단어를 보내보세요'}</span></div>`;
   const input = (!IS_CTRL&&c.open) ? `<div class="wordrow"><input id="wordInput" maxlength="12" placeholder="${mine.length>=3?'3개 다 보냈어요':'한 단어 (12자)'}" ${mine.length>=3?'disabled':''} autocomplete="off"><button id="wordBtn" ${mine.length>=3?'disabled':''}>보내기</button></div>
@@ -1053,7 +1052,7 @@ function buildReport(){
   const d=new Date(), ds=d.toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
   const qs=ordered(), total=qs.length, answered=qs.filter(q=>q.answered).length, votes=qs.reduce((a,q)=>a+vc(q),0);
   const polls=(state.polls||[]), cloud=state.cloud, rx=state.reactions||{};
-  const accent=(getComputedStyle(document.documentElement).getPropertyValue('--orange')||'#FF6B1A').trim();
+  const accent=(getComputedStyle(document.documentElement).getPropertyValue('--orange')||'#4F46E5').trim();
   const bar=(n,max)=>`<div style="height:10px;border-radius:5px;background:#eef2f7;overflow:hidden"><div style="height:100%;width:${max?Math.round(n/max*100):0}%;background:${accent}"></div></div>`;
   const qHtml=qs.map((q,i)=>`<div class="qi"><div class="m">${i+1}. ${q.answered?'<span class="tag">답변 완료</span>':''}${q.pinned?'<span class="tag">핀</span>':''}<span class="v">🙌 ${vc(q)}</span></div><div class="t">${esc(q.text)}</div>${q.answer?`<div class="a"><b>강사 답변</b>${esc(q.answer)}</div>`:''}<div class="w">${esc(q.anon?'익명':q.nick)} · ${new Date(q.ts).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}</div></div>`).join('')||'<p class="mut">올라온 질문이 없어요.</p>';
   const pHtml=polls.map(p=>{const tot=p.counts.reduce((a,b)=>a+b,0),max=Math.max(...p.counts,1); const avg=p.type==='scale'&&tot?`<span class="mut">· 평균 ${(p.counts.reduce((a,c,i)=>a+c*(i+1),0)/tot).toFixed(1)} / 5</span>`:'';

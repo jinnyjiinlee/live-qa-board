@@ -13,6 +13,10 @@
 |---|---|
 | ![투표](docs/screen-poll.png) | ![워드클라우드](docs/screen-cloud.png) |
 
+다크 테마 (`?theme=dark`) — 조명 어두운 행사장용
+
+![다크 테마](docs/screen-darkmode.png)
+
 | 참가자 — 질문 | 참가자 — 투표 | 참가자 — 워드클라우드 | 강사 리모컨 |
 |---|---|---|---|
 | ![참가자](docs/phone-dark.png) | ![투표](docs/phone-poll.png) | ![클라우드](docs/phone-cloud.png) | ![리모컨](docs/host-remote.png) |
@@ -44,7 +48,7 @@
 - **승인 모드**(옵션) — 질문이 강사 승인 후에만 모두에게 보여요
 - 효과음·배경음악 (음원 파일 없이 브라우저가 직접 만들어요 — 저작권 걱정 없음)
 - **강의 리포트 저장** — 질문·강사 답변·투표 결과·워드클라우드·리액션을 HTML 한 장으로. 교육 담당자에게 그대로 보낼 수 있어요
-- CSV 내려받기, 다크/라이트 테마, 방(room) 분리로 여러 강의 동시 진행
+- CSV 내려받기, 라이트/다크 테마, 방(room) 분리로 여러 강의 동시 진행
 
 강사 리모컨 (강사 폰)
 - 강사 화면의 REMOTE 카드에 있는 QR을 강사 폰으로 찍으면, **돌아다니면서** 핀·완료·답변 메모·투표 시작·타이머를 조작할 수 있어요
@@ -70,7 +74,7 @@
 title: '우리 강의',        // 화면 상단과 입장 화면에 보이는 이름
 accent: '#FF6B1A',        // 강조색 — 교육회사 색으로
 logo: '',                 // 로고 파일 이름 (같은 폴더에 두세요)
-theme: 'dark',            // 'dark' 또는 'light'
+theme: 'light',           // 'light'(기본) 또는 'dark'
 moderation: false,        // true면 질문이 강사 승인 후에 보여요
 allowAnonymous: true,     // 익명 올리기 토글 허용
 topicPresets: [ ... ],    // TOPIC 버튼
@@ -81,7 +85,7 @@ cloudPresets: [ ... ],    // 워드클라우드 빠른 템플릿
 파일을 안 고치고 주소 뒤에 붙여서 바꿀 수도 있어요.
 
 - `?org=AI 업무 자동화 특강` — 이름 바꾸기
-- `?theme=light` — 라이트 테마
+- `?theme=dark` — 다크 테마 (기본은 라이트)
 - `?room=b반` — 방 분리 (강사는 `?screen&room=b반`)
 
 ## 3단계: 실시간 연결 (Supabase, 5분)
