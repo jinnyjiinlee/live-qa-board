@@ -530,6 +530,21 @@ const store = {
 };
 let my = store.load() || {id:crypto.randomUUID(), nick:'', avatar:'', voted:[]};
 let state = {questions:[], topic:null};
+/* 작성자 ID는 참가자들에게 해시로만 보낸다 — 남의 ID를 복사해 수정·삭제를 흉내 낼 수 없게 */
+const hashCache = {};
+async function sha(s){ if(hashCache[s])return hashCache[s];
+  const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return hashCache[s]=[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+let myHash=''; sha(my.id).then(h=>{myHash=h; render();});
+const isMine = q => IS_SCREEN ? false : (q.byHash===myHash);
+let hostId=null, pendingState=null; // 참가자: 처음 확인한 강사 화면의 ID만 신뢰
+function applyState(payload){
+  const hadTopic = state.topic&&state.topic.text;
+  state={questions:payload.questions||[], topic:payload.topic||null};
+  const nowTopic = state.topic&&state.topic.text;
+  applyCopy(); render();
+  if(nowTopic && nowTopic!==hadTopic) toast('📣 새 주제가 올라왔어요!');
+}
 let lastLeader=null, editingId=null;
 
 /* ================= 오디오: 효과음 + 생성형 BGM (음원 파일 없음 — 저작권 프리) ================= */
@@ -599,7 +614,7 @@ function demoChannel(name, myId){
   const ping = ()=>{ if(meta){ peers[myId]={t:Date.now(),meta}; bc.postMessage({k:'p',id:myId,meta}); } };
   bc.onmessage = ({data})=>{
     if(data.k==='b') emit('broadcast', data.event, data.payload);
-    if(data.k==='p'){ peers[data.id]={t:Date.now(),meta:data.meta}; syncPresence(); }
+    if(data.k==='p'){ const isNew=!peers[data.id]; peers[data.id]={t:Date.now(),meta:data.meta}; syncPresence(); if(isNew) ping(); }
     if(data.k==='bye'){ delete peers[data.id]; syncPresence(); }
   };
   setInterval(()=>{ ping(); const now=Date.now(); let gone=false;
@@ -681,7 +696,10 @@ function screenApply(type,p){
 function persist(){localStorage.setItem('liveqa2-screen:'+ROOM,JSON.stringify(state))}
 function restore(){try{const s=JSON.parse(localStorage.getItem('liveqa2-screen:'+ROOM));if(s&&s.questions)state={questions:s.questions,topic:s.topic||null}}catch(e){}}
 let bt=null;
-function broadcastState(){clearTimeout(bt);bt=setTimeout(()=>ch.send({type:'broadcast',event:'state',payload:state}),120)}
+function broadcastState(){clearTimeout(bt);bt=setTimeout(async()=>{
+  const questions=await Promise.all(state.questions.map(async q=>{const {by,...rest}=q; return {...rest, byHash:await sha(by||'')};}));
+  ch.send({type:'broadcast',event:'state',payload:{questions, topic:state.topic, from:my.id}});
+},120)}
 
 ch.on('broadcast',{event:'ask'},   ({payload})=>IS_SCREEN&&screenApply('ask',payload))
   .on('broadcast',{event:'vote'},  ({payload})=>IS_SCREEN&&screenApply('vote',payload))
@@ -689,16 +707,19 @@ ch.on('broadcast',{event:'ask'},   ({payload})=>IS_SCREEN&&screenApply('ask',pay
   .on('broadcast',{event:'del'},   ({payload})=>IS_SCREEN&&screenApply('del',{...payload, by:payload.by==='HOST'?'':payload.by}))
   .on('broadcast',{event:'hello'}, ()=>IS_SCREEN&&broadcastState())
   .on('broadcast',{event:'react'}, ({payload})=>['👏','🔥','💡','❤️','😮'].includes(payload&&payload.e)&&fly(payload.e))
-  .on('broadcast',{event:'state'}, ({payload})=>{ if(!IS_SCREEN){
-      const hadTopic = state.topic&&state.topic.text;
-      state={questions:payload.questions||[], topic:payload.topic||null};
-      const nowTopic = state.topic&&state.topic.text;
-      applyCopy(); render();
-      if(nowTopic && nowTopic!==hadTopic) toast('📣 새 주제가 올라왔어요!');
-    }})
+  .on('broadcast',{event:'state'}, ({payload})=>{ if(IS_SCREEN||!payload)return;
+      if(hostId){ if(payload.from===hostId) applyState(payload); return; }
+      const fromMeta=(ch.presenceState()[payload.from]||[])[0];
+      if(fromMeta&&fromMeta.screen){ hostId=payload.from; applyState(payload); }
+      else pendingState=payload; // 강사 화면 presence가 아직 안 왔으면 보류
+    })
   .on('presence',{event:'sync'},()=>{
-    const n=Math.max(0,Object.keys(ch.presenceState()).length-(IS_SCREEN?1:0));
-    $('#stP').textContent=n;
+    const pres=ch.presenceState();
+    $('#stP').textContent=Math.max(0,Object.keys(pres).length-(IS_SCREEN?1:0));
+    if(!IS_SCREEN&&!hostId){
+      const k=Object.keys(pres).find(k=>pres[k][0]&&pres[k][0].screen);
+      if(k){ hostId=k; if(pendingState&&pendingState.from===k) applyState(pendingState); else ch.send({type:'broadcast',event:'hello',payload:{}}); pendingState=null; }
+    }
   })
   .subscribe(async s=>{
     setConn(s==='SUBSCRIBED');
@@ -737,7 +758,7 @@ function ordered(){
 function visible(qs){
   let v=qs;
   if(filterMode==='open') v=v.filter(q=>!q.answered);
-  if(filterMode==='mine') v=v.filter(q=>q.by===my.id);
+  if(filterMode==='mine') v=v.filter(isMine);
   if(IS_SCREEN&&hideDone) v=v.filter(q=>!q.answered);
   return v;
 }
@@ -747,7 +768,7 @@ function render(){
   $('#stQ').textContent=all.length; $('#stV').textContent=totalV;
   $('#cAll').textContent=all.length;
   $('#cOpen').textContent=all.filter(q=>!q.answered).length;
-  $('#cMine').textContent=all.filter(q=>q.by===my.id).length;
+  $('#cMine').textContent=all.filter(isMine).length;
   const rankOf={}; all.filter(q=>!q.answered).forEach((q,i)=>rankOf[q.id]=i);
 
   if(!qs.length){
@@ -757,7 +778,7 @@ function render(){
   const prev={};[...list.children].forEach(el=>{if(el.dataset.id)prev[el.dataset.id]=el.getBoundingClientRect().top});
   const known=new Set([...list.children].map(el=>el.dataset.id));
   list.innerHTML=qs.map((q,i)=>{
-    const v=q.votes.length, mine=q.by===my.id, votedQ=my.voted.includes(q.id);
+    const v=q.votes.length, mine=isMine(q), votedQ=my.voted.includes(q.id);
     const first=IS_SCREEN&&i===0&&!q.answered&&filterMode!=='mine';
     return `<div class="q ${mine?'mine':''} ${q.pinned?'pinned':''} ${q.answered?'answered':''} ${first?'first':''} ${known.size&&!known.has(q.id)?'pop':''}" data-id="${q.id}">
       <div class="top">
