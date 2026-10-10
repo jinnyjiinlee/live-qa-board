@@ -5,11 +5,17 @@
 
 **바로 써보기(데모 모드):** 강사 화면 https://jinnyjiinlee.github.io/live-qa-board/?screen · 참가자 화면 https://jinnyjiinlee.github.io/live-qa-board/ — 같은 브라우저에서 두 탭을 나란히 열어보세요
 
+시작 화면 — 질문이 올라오기 전엔 QR이 크게 떠요
+
+![시작 화면](docs/screen-empty.png)
+
+질문이 올라오면 공감 많은 질문이 위로 — 강사 화면
+
 ![강사 화면](docs/screen-dark.png)
 
-| 참가자 (폰) | 입장 화면 (라이트 테마) |
-|---|---|
-| ![참가자 화면](docs/phone-dark.png) | ![입장 화면](docs/phone-light-gate.png) |
+| 입장 (주사위로 별명 추천) | 참가자 (폰) | 라이트 테마 |
+|---|---|---|
+| ![입장 화면](docs/phone-gate.png) | ![참가자 화면](docs/phone-dark.png) | ![라이트 테마](docs/phone-light-gate.png) |
 
 ## 왜 만들었나요
 
