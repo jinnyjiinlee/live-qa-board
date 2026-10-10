@@ -665,9 +665,12 @@ function applyCopy(){
 /* ---------- 스크린 = 상태 권한자 ---------- */
 function screenApply(type,p){
   const find=id=>state.questions.find(q=>q.id===id);
-  if(type==='ask'){ if(find(p.id))return; state.questions.push({...p,votes:[],pinned:false,answered:false}); sfx.ask(); toast(`${p.avatar} ${p.nick} 님의 새 글!`); }
+  if(type==='ask'){ if(find(p.id)||typeof p.text!=='string'||!p.text.trim())return;
+    const clean={id:String(p.id).slice(0,40), by:String(p.by||'').slice(0,40), nick:String(p.nick||'익명').slice(0,10),
+      avatar:AVATARS.includes(p.avatar)?p.avatar:AVATARS[0], text:p.text.trim().slice(0,120), ts:Number(p.ts)||Date.now()};
+    state.questions.push({...clean,votes:[],pinned:false,answered:false}); sfx.ask(); toast(`${clean.avatar} ${clean.nick} 님의 새 글!`); }
   if(type==='vote'){ const q=find(p.qid); if(!q||q.votes.includes(p.voter))return; q.votes.push(p.voter); sfx.vote(); }
-  if(type==='edit'){ const q=find(p.qid); if(!q||q.by!==p.by)return; q.text=p.text; q.edited=true; }
+  if(type==='edit'){ const q=find(p.qid); if(!q||q.by!==p.by||typeof p.text!=='string'||!p.text.trim())return; q.text=p.text.trim().slice(0,120); q.edited=true; }
   if(type==='del'){ const q=find(p.qid); if(!q||(q.by!==p.by&&p.by!=='HOST'))return; state.questions=state.questions.filter(x=>x.id!==p.qid); }
   if(type==='pin'){ const q=find(p.qid); if(!q)return; const on=!q.pinned; state.questions.forEach(x=>x.pinned=false); q.pinned=on; }
   if(type==='answer'){ const q=find(p.qid); if(!q)return; q.answered=!q.answered; if(q.answered)q.pinned=false; }
@@ -683,9 +686,9 @@ function broadcastState(){clearTimeout(bt);bt=setTimeout(()=>ch.send({type:'broa
 ch.on('broadcast',{event:'ask'},   ({payload})=>IS_SCREEN&&screenApply('ask',payload))
   .on('broadcast',{event:'vote'},  ({payload})=>IS_SCREEN&&screenApply('vote',payload))
   .on('broadcast',{event:'edit'},  ({payload})=>IS_SCREEN&&screenApply('edit',payload))
-  .on('broadcast',{event:'del'},   ({payload})=>IS_SCREEN&&screenApply('del',payload))
+  .on('broadcast',{event:'del'},   ({payload})=>IS_SCREEN&&screenApply('del',{...payload, by:payload.by==='HOST'?'':payload.by}))
   .on('broadcast',{event:'hello'}, ()=>IS_SCREEN&&broadcastState())
-  .on('broadcast',{event:'react'}, ({payload})=>fly(payload.e))
+  .on('broadcast',{event:'react'}, ({payload})=>['👏','🔥','💡','❤️','😮'].includes(payload&&payload.e)&&fly(payload.e))
   .on('broadcast',{event:'state'}, ({payload})=>{ if(!IS_SCREEN){
       const hadTopic = state.topic&&state.topic.text;
       state={questions:payload.questions||[], topic:payload.topic||null};
@@ -758,7 +761,7 @@ function render(){
     const first=IS_SCREEN&&i===0&&!q.answered&&filterMode!=='mine';
     return `<div class="q ${mine?'mine':''} ${q.pinned?'pinned':''} ${q.answered?'answered':''} ${first?'first':''} ${known.size&&!known.has(q.id)?'pop':''}" data-id="${q.id}">
       <div class="top">
-        <div class="avatar">${q.avatar}</div>
+        <div class="avatar">${esc(q.avatar)}</div>
         <span class="who">${esc(q.nick)}${mine?' <span class="me">(나)</span>':''}</span>
         <span class="time">${ago(q.ts)}${q.edited?' · 수정됨':''}</span>
         ${q.pinned?'<span class="pinflag">NOW</span>':''}
