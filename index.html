@@ -699,11 +699,19 @@ const rnd=n=>[...crypto.getRandomValues(new Uint8Array(n))].map(b=>b.toString(16
 const SESSION = IS_SCREEN ? (params.get('h')||rnd(4)) : (params.get('h')||'');
 /* 리모컨 키: 강사 화면이 만들고 리모컨 QR에만 들어간다 (참가자 QR에는 없음) */
 const HK='liveqa2-hostkey:'+ROOM;
-const HOSTKEY = IS_SCREEN ? (localStorage.getItem(HK)||(()=>{const k=rnd(16);localStorage.setItem(HK,k);return k})()) : (params.get('host')||'');
+/* 저장된 키가 예전 형식(짧은 키)이면 버리고 새로 만든다 */
+const HOSTKEY = IS_SCREEN ? (()=>{const k0=localStorage.getItem(HK); if(/^[0-9a-f]{32}$/.test(k0||''))return k0; const k=rnd(16); localStorage.setItem(HK,k); return k;})() : (params.get('host')||'');
 /* 리모컨 명령은 키를 싣지 않고 HMAC 서명만 보낸다 — 방송을 엿봐도 키를 알 수 없게 */
 async function hmac(key,msg){ const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(key),{name:'HMAC',hash:'SHA-256'},false,['sign']);
   const sig=await crypto.subtle.sign('HMAC',k,new TextEncoder().encode(msg)); return [...new Uint8Array(sig)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
 const seenNonce=new Set();
+const ID_OK=v=>typeof v==='string'&&/^[0-9a-zA-Z_-]{1,40}$/.test(v);   /* 참가자가 보낸 id·키는 이 형식만 */
+const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+/* 승인 대기 질문은 리모컨 키로 암호화해서 강사 폰만 열 수 있게 */
+const b64=u=>btoa(String.fromCharCode(...u)), ub64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function aesKey(secret){ const raw=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('liveqa-seal:'+secret)); return crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']); }
+async function sealFor(secret,obj){ const iv=crypto.getRandomValues(new Uint8Array(12)); const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},await aesKey(secret),new TextEncoder().encode(JSON.stringify(obj))); return {iv:b64(iv),ct:b64(new Uint8Array(ct))}; }
+async function openFor(secret,box){ try{ const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:ub64(box.iv)},await aesKey(secret),ub64(box.ct)); return JSON.parse(new TextDecoder().decode(pt)); }catch(e){ return null; } }
 let hostId=null, pendingState=null;
 
 /* ================= 오디오: 효과음 + 생성형 BGM ================= */
@@ -806,19 +814,19 @@ function applyCopy(){
 /* ================= 스크린 = 상태 권한자 ================= */
 const find=id=>state.questions.find(q=>q.id===id);
 function screenApply(type,p){
-  if(type==='ask'){ if(find(p.id)||typeof p.text!=='string'||!p.text.trim())return;
-    const clean={id:String(p.id).slice(0,40), by:String(p.by||'').slice(0,40), nick:String(p.nick||'익명').slice(0,10),
+  if(type==='ask'){ if(!ID_OK(p.id)||!ID_OK(p.by)||find(p.id)||typeof p.text!=='string'||!p.text.trim())return;
+    const clean={id:p.id, by:p.by, nick:String(p.nick||'익명').slice(0,10),
       avatar:AVATARS.includes(p.avatar)?p.avatar:AVATARS[0], text:p.text.trim().slice(0,120), ts:Number(p.ts)||Date.now(), anon:ANON_OK&&!!p.anon};
     state.questions.push({...clean,votes:[],pinned:false,answered:false,approved:!MOD,answer:''});
     if(MOD) toast(`승인 대기 질문이 왔어요 (${state.questions.filter(q=>!q.approved).length})`); else { sfx.ask(); toast(`${clean.anon?'🙈 익명':clean.avatar+' '+clean.nick} 님의 새 글!`); } }
-  if(type==='vote'){ const q=find(p.qid); if(!q||!q.approved||q.votes.includes(p.voter))return; q.votes.push(p.voter); sfx.vote(); }
+  if(type==='vote'){ if(!ID_OK(p.voter))return; const q=find(p.qid); if(!q||!q.approved||q.votes.includes(p.voter))return; q.votes.push(p.voter); sfx.vote(); }
   if(type==='edit'){ const q=find(p.qid); if(!q||q.by!==p.by||typeof p.text!=='string'||!p.text.trim())return; q.text=p.text.trim().slice(0,120); q.edited=true; }
   if(type==='del'){ const q=find(p.qid); if(!q||q.by!==p.by)return; state.questions=state.questions.filter(x=>x.id!==p.qid); }
   if(type==='pvote'){ const poll=(state.polls||[]).find(x=>x.id===p.pid); if(!poll||!poll.open)return; const i=Number(p.idx); if(!(i>=0&&i<poll.options.length))return;
-    const v=String(p.voter||'').slice(0,40); if(!v||poll.voters[v]!=null)return; poll.voters[v]=i; poll.counts[i]++; sfx.vote(); }
-  if(type==='word'){ const c=state.cloud; if(!c||!c.open||c.id!==p.cid)return; const by=String(p.by||'').slice(0,40); if(!by)return;
-    let w=String(p.w||'').trim().replace(/\s+/g,' ').slice(0,12); if(!w)return; c.voters[by]=(c.voters[by]||0); if(c.voters[by]>=3)return; c.voters[by]++;
-    c.words[w]=(c.words[w]||0)+1; c.total++; sfx.vote(); }
+    const v=p.voter; if(!ID_OK(v)||own(poll.voters,v))return; poll.voters[v]=i; poll.counts[i]++; sfx.vote(); }
+  if(type==='word'){ const c=state.cloud; if(!c||!c.open||c.id!==p.cid)return; const by=p.by; if(!ID_OK(by))return;
+    let w=String(p.w||'').trim().replace(/\s+/g,' ').slice(0,12); if(!w||w in Object.prototype)return; const n=own(c.voters,by)?c.voters[by]:0; if(n>=3)return; c.voters[by]=n+1;
+    c.words[w]=(own(c.words,w)?c.words[w]:0)+1; c.total++; sfx.vote(); }
   if(type==='react'){ state.reactions[p.e]=(state.reactions[p.e]||0)+1; persist(); return; }
   persist(); broadcastState(); render();
 }
@@ -862,15 +870,17 @@ function restore(){ try{const s=JSON.parse(localStorage.getItem('liveqa2-screen:
 let bt=null;
 function broadcastState(){clearTimeout(bt);bt=setTimeout(async()=>{
   const questions=await Promise.all(state.questions.filter(q=>q.approved).map(async q=>{const {by,votes,...rest}=q; return {...rest, nick:q.anon?'익명':q.nick, avatar:q.anon?'🙈':q.avatar, votes:votes.length, byHash:await sha(by||'')};}));
-  const pending=MOD ? state.questions.filter(q=>!q.approved).map(q=>({id:q.id,nick:q.anon?'익명':q.nick,text:q.text,ts:q.ts})) : [];
+  const pend=MOD ? state.questions.filter(q=>!q.approved).map(q=>({id:q.id,nick:q.anon?'익명':q.nick,text:q.text,ts:q.ts})) : [];
+  const pendingBox = pend.length ? await sealFor(HOSTKEY,pend) : null;
   const polls=(state.polls||[]).map(({voters,...p})=>({...p,total:Object.keys(voters).length}));
   const cloud=state.cloud?(({voters,...c})=>c)(state.cloud):null;
-  send('state',{questions, pending, topic:state.topic, activity:state.activity, polls, cloud, timer:state.timer, from:my.id, h:SESSION});
+  send('state',{questions, pendingBox, topic:state.topic, activity:state.activity, polls, cloud, timer:state.timer, from:my.id, h:SESSION});
 },120)}
 function applyState(payload){
   const hadTopic=state.topic&&state.topic.text, hadAct=act(), hadPoll=(state.activity||{}).pid, hadCloud=state.cloud&&state.cloud.id, hadTimer=!!state.timer;
-  state={questions:payload.questions||[], pending:payload.pending||[], topic:payload.topic||null, activity:payload.activity||{type:'qa'}, polls:payload.polls||[], cloud:payload.cloud||null, timer:payload.timer||null, reactions:{}};
+  state={questions:payload.questions||[], pending:[], topic:payload.topic||null, activity:payload.activity||{type:'qa'}, polls:payload.polls||[], cloud:payload.cloud||null, timer:payload.timer||null, reactions:{}};
   if(!hadTimer&&state.timer) timerFired=false;
+  if(IS_HOST&&payload.pendingBox) openFor(HOSTKEY,payload.pendingBox).then(pd=>{ if(Array.isArray(pd)){ state.pending=pd; render(); } });
   applyCopy(); render();
   const nowTopic=state.topic&&state.topic.text;
   if(!IS_HOST){
@@ -923,6 +933,7 @@ function confetti(){const em=['🎉','✨','🧡','⭐️','🎊']; for(let i=0;
 /* ================= 렌더 ================= */
 let filterMode='all', sortMode='votes', hideDone=false, sideTab='qa';
 const ago=ts=>{const m=Math.floor((Date.now()-ts)/60000);return m<1?'방금':m<60?m+'분 전':Math.floor(m/60)+'시간 전'};
+const aid=v=>ID_OK(v)?v:'';
 const rankTag=i=>i===0?'👑':i<3?`<span class="rankno">#${i+1}</span>`:'';
 let screenQr='', screenJoin='';
 function ordered(){ let qs=[...state.questions.filter(q=>q.approved!==false)];
@@ -931,10 +942,10 @@ function ordered(){ let qs=[...state.questions.filter(q=>q.approved!==false)];
 function visible(qs){ let v=qs; if(filterMode==='open') v=v.filter(q=>!q.answered); if(filterMode==='mine') v=v.filter(isMine); if(IS_SCREEN&&hideDone) v=v.filter(q=>!q.answered); return v; }
 function render(){ renderQA(); renderPoll(); renderCloud(); renderTimer(); if(IS_SCREEN) renderSide(); }
 function hostRow(q){ return `<div class="hostrow">
-  <button data-cmd="pin" data-qid="${q.id}">${q.pinned?'핀 해제':'📌 핀'}</button>
-  <button data-cmd="done" data-qid="${q.id}">${q.answered?'되돌리기':'✓ 완료'}</button>
-  <button data-cmd="noteOpen" data-qid="${q.id}">💬 ${q.answer?'답변 수정':'답변 메모'}</button>
-  <button class="del" data-cmd="del" data-qid="${q.id}">✕</button></div>`; }
+  <button data-cmd="pin" data-qid="${aid(q.id)}">${q.pinned?'핀 해제':'📌 핀'}</button>
+  <button data-cmd="done" data-qid="${aid(q.id)}">${q.answered?'되돌리기':'✓ 완료'}</button>
+  <button data-cmd="noteOpen" data-qid="${aid(q.id)}">💬 ${q.answer?'답변 수정':'답변 메모'}</button>
+  <button class="del" data-cmd="del" data-qid="${aid(q.id)}">✕</button></div>`; }
 function renderQA(){
   const list=$('#list'), all=ordered(), qs=visible(all), c=copy();
   const totalV=all.reduce((a,q)=>a+vc(q),0);
@@ -945,7 +956,7 @@ function renderQA(){
   const pend=IS_SCREEN ? state.questions.filter(q=>!q.approved) : (IS_HOST ? (state.pending||[]) : []);
   const pb=$('#pending');
   if(IS_CTRL&&MOD&&pend.length){ pb.style.display=''; pb.innerHTML=`<div class="t">승인 대기 ${pend.length}</div>`+pend.map(q=>`<div class="pq"><div class="tx">${esc(q.text)}<small>${esc(q.anon?'익명':q.nick)} · ${ago(q.ts)}</small></div>
-    <button class="ok" data-cmd="approve" data-qid="${q.id}">승인</button><button data-cmd="del" data-qid="${q.id}">삭제</button></div>`).join(''); }
+    <button class="ok" data-cmd="approve" data-qid="${aid(q.id)}">승인</button><button data-cmd="del" data-qid="${aid(q.id)}">삭제</button></div>`).join(''); }
   else pb.style.display='none';
   if(!qs.length){
     if(IS_SCREEN&&filterMode==='all'&&!all.length&&screenQr){
@@ -960,15 +971,15 @@ function renderQA(){
   list.innerHTML=qs.map((q,i)=>{
     const v=vc(q), mine=isMine(q), votedQ=my.voted.includes(q.id), first=IS_SCREEN&&i===0&&!q.answered&&filterMode!=='mine';
     const nick=q.anon?'익명':q.nick, av=q.anon?'🙈':q.avatar;
-    return `<div class="q ${mine?'mine':''} ${q.pinned?'pinned':''} ${q.answered?'answered':''} ${first?'first':''} ${known.size&&!known.has(q.id)?'pop':''}" data-id="${q.id}">
+    return `<div class="q ${mine?'mine':''} ${q.pinned?'pinned':''} ${q.answered?'answered':''} ${first?'first':''} ${known.size&&!known.has(q.id)?'pop':''}" data-id="${aid(q.id)}">
       <div class="top"><div class="avatar">${esc(av)}</div><span class="who">${esc(nick)}${mine?' <span class="me">(나)</span>':''}</span>
         <span class="time">${ago(q.ts)}${q.edited?' · 수정됨':''}</span>${q.pinned?'<span class="pinflag">NOW</span>':''}${q.answered?'<span class="doneflag">DONE</span>':''}
         <span class="rank">${!q.answered&&rankOf[q.id]!=null?rankTag(rankOf[q.id]):''}</span></div>
       <div class="txt">${esc(q.text)}</div>
       ${q.answer?`<div class="ans"><b>강사 답변</b>${esc(q.answer)}</div>`:''}
       ${IS_SCREEN?`<div class="scvotes">🙌 ${v}</div>${hostRow(q)}` : IS_HOST ? `<div class="foot" style="margin-top:6px"><span class="time">🙌 ${v}</span></div>${hostRow(q)}`
-        :`<div class="foot"><button class="voteBtn ${votedQ?'voted':''}" data-vote="${q.id}">🙌 ${c.vote} <span class="n">${v}</span></button>
-          ${mine?`<div class="own-actions"><button class="iconBtn" data-edit="${q.id}" title="수정">✏️</button><button class="iconBtn" data-del="${q.id}" title="삭제">🗑</button></div>`:''}</div>`}
+        :`<div class="foot"><button class="voteBtn ${votedQ?'voted':''}" data-vote="${aid(q.id)}">🙌 ${c.vote} <span class="n">${v}</span></button>
+          ${mine?`<div class="own-actions"><button class="iconBtn" data-edit="${aid(q.id)}" title="수정">✏️</button><button class="iconBtn" data-del="${aid(q.id)}" title="삭제">🗑</button></div>`:''}</div>`}
     </div>`}).join('');
   [...list.children].forEach(el=>{ const id=el.dataset.id; if(id&&prev[id]!=null){ const d=prev[id]-el.getBoundingClientRect().top;
       if(Math.abs(d)>4){el.style.transition='none';el.style.transform=`translateY(${d}px)`; requestAnimationFrame(()=>{el.style.transition='';el.style.transform='';el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),450)});} }});
