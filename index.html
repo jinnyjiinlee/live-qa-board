@@ -537,6 +537,9 @@ async function sha(s){ if(hashCache[s])return hashCache[s];
   return hashCache[s]=[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
 let myHash=''; sha(my.id).then(h=>{myHash=h; render();});
 const isMine = q => IS_SCREEN ? false : (q.byHash===myHash);
+const vc = q => Array.isArray(q.votes) ? q.votes.length : (Number(q.votes)||0);
+/* 세션 토큰: 강사 화면이 QR 주소에 넣어주고, 참가자는 그 토큰이 붙은 상태만 받는다 */
+const SESSION = IS_SCREEN ? (params.get('h')||Math.random().toString(36).slice(2,8)) : (params.get('h')||'');
 let hostId=null, pendingState=null; // 참가자: 처음 확인한 강사 화면의 ID만 신뢰
 function applyState(payload){
   const hadTopic = state.topic&&state.topic.text;
@@ -697,8 +700,8 @@ function persist(){localStorage.setItem('liveqa2-screen:'+ROOM,JSON.stringify(st
 function restore(){try{const s=JSON.parse(localStorage.getItem('liveqa2-screen:'+ROOM));if(s&&s.questions)state={questions:s.questions,topic:s.topic||null}}catch(e){}}
 let bt=null;
 function broadcastState(){clearTimeout(bt);bt=setTimeout(async()=>{
-  const questions=await Promise.all(state.questions.map(async q=>{const {by,...rest}=q; return {...rest, byHash:await sha(by||'')};}));
-  ch.send({type:'broadcast',event:'state',payload:{questions, topic:state.topic, from:my.id}});
+  const questions=await Promise.all(state.questions.map(async q=>{const {by,votes,...rest}=q; return {...rest, votes:votes.length, byHash:await sha(by||'')};}));
+  ch.send({type:'broadcast',event:'state',payload:{questions, topic:state.topic, from:my.id, h:SESSION}});
 },120)}
 
 ch.on('broadcast',{event:'ask'},   ({payload})=>IS_SCREEN&&screenApply('ask',payload))
@@ -708,6 +711,7 @@ ch.on('broadcast',{event:'ask'},   ({payload})=>IS_SCREEN&&screenApply('ask',pay
   .on('broadcast',{event:'hello'}, ()=>IS_SCREEN&&broadcastState())
   .on('broadcast',{event:'react'}, ({payload})=>['👏','🔥','💡','❤️','😮'].includes(payload&&payload.e)&&fly(payload.e))
   .on('broadcast',{event:'state'}, ({payload})=>{ if(IS_SCREEN||!payload)return;
+      if(SESSION && payload.h!==SESSION) return; // QR로 받은 세션 토큰이 다르면 무시
       if(hostId){ if(payload.from===hostId) applyState(payload); return; }
       const fromMeta=(ch.presenceState()[payload.from]||[])[0];
       if(fromMeta&&fromMeta.screen){ hostId=payload.from; applyState(payload); }
@@ -751,7 +755,7 @@ function ordered(){
   qs.sort((a,b)=>{
     if(!!b.pinned-!!a.pinned) return !!b.pinned-!!a.pinned;
     if(!!a.answered-!!b.answered) return !!a.answered-!!b.answered;
-    return sortMode==='new' ? b.ts-a.ts : (b.votes.length-a.votes.length||a.ts-b.ts);
+    return sortMode==='new' ? b.ts-a.ts : (vc(b)-vc(a)||a.ts-b.ts);
   });
   return qs;
 }
@@ -764,7 +768,7 @@ function visible(qs){
 }
 function render(){
   const list=$('#list'), all=ordered(), qs=visible(all), c=copy();
-  const totalV=all.reduce((a,q)=>a+q.votes.length,0);
+  const totalV=all.reduce((a,q)=>a+vc(q),0);
   $('#stQ').textContent=all.length; $('#stV').textContent=totalV;
   $('#cAll').textContent=all.length;
   $('#cOpen').textContent=all.filter(q=>!q.answered).length;
@@ -778,7 +782,7 @@ function render(){
   const prev={};[...list.children].forEach(el=>{if(el.dataset.id)prev[el.dataset.id]=el.getBoundingClientRect().top});
   const known=new Set([...list.children].map(el=>el.dataset.id));
   list.innerHTML=qs.map((q,i)=>{
-    const v=q.votes.length, mine=isMine(q), votedQ=my.voted.includes(q.id);
+    const v=vc(q), mine=isMine(q), votedQ=my.voted.includes(q.id);
     const first=IS_SCREEN&&i===0&&!q.answered&&filterMode!=='mine';
     return `<div class="q ${mine?'mine':''} ${q.pinned?'pinned':''} ${q.answered?'answered':''} ${first?'first':''} ${known.size&&!known.has(q.id)?'pop':''}" data-id="${q.id}">
       <div class="top">
@@ -843,6 +847,7 @@ if(IS_SCREEN){
   if(ROOM!==DEF_ROOM) jp.set('room',ROOM);
   if(params.get('org')) jp.set('org',params.get('org'));
   if(params.get('theme')) jp.set('theme',params.get('theme'));
+  jp.set('h',SESSION);
   const join=location.origin+location.pathname+(jp.toString()?'?'+jp.toString():'');
   /* QR은 브라우저 안에서 직접 그림 (외부 QR 서버로 주소를 보내지 않음) */
   const qrSrc=n=>{ const q=qrcode(0,'M'); q.addData(join); q.make();
@@ -876,7 +881,7 @@ if(IS_SCREEN){
     $('#hideDoneSt').textContent=hideDone?'숨김':'표시';render()};
   $('#csvBtn').onclick=()=>{
     const rows=[['순번','작성자','내용','공감','올린시각','상태']];
-    ordered().forEach((q,i)=>rows.push([i+1,q.nick,q.text,q.votes.length,new Date(q.ts).toLocaleString('ko-KR'),q.answered?'완료':'미답변']));
+    ordered().forEach((q,i)=>rows.push([i+1,q.nick,q.text,vc(q),new Date(q.ts).toLocaleString('ko-KR'),q.answered?'완료':'미답변']));
     const csv='﻿'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
     a.download=`liveqa_${ROOM}_${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('CSV를 내려받았어요 ⤓');
